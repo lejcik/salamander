@@ -41,7 +41,7 @@ jobs:
         languages: ${{ matrix.language }}
 
     - name: Create project dir
-      run: if not exist ${{ env.OPENSAL_BUILD_DIR }} mkdir ${{ env.OPENSAL_BUILD_DIR }}
+      run: mkdir ${{ env.OPENSAL_BUILD_DIR }}
 
     - name: Build the project
       run: msbuild src\vcxproj\salamand.sln
