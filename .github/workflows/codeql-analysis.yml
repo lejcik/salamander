@@ -39,6 +39,7 @@ jobs:
       uses: github/codeql-action/init@v3
       with:
         languages: ${{ matrix.language }}
+        debug: true
 
     - name: Create project dir
       run: mkdir ${{ env.OPENSAL_BUILD_DIR }}
