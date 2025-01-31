@@ -8,9 +8,9 @@ on:
 
 env:
   # Project files expect this variable to be defined.
-  OPENSAL_BUILD_DIR: c:\\OpenSalamander.bin
+  OPENSAL_BUILD_DIR: c:\\OpenSalamander\\
   # Project files expect this variable to be defined.
-  OPENSAL_INSTALL_DIR: c:\\OpenSalamander
+  OPENSAL_INSTALL_DIR: c:\\install\\OpenSalamander\\
   # Configuration type to build.
   BUILD_CONFIGURATION: Release
 
@@ -30,8 +30,8 @@ jobs:
     - name: Create version file
       run: |
         mkdir ${{ env.OPENSAL_INSTALL_DIR }}
-        git describe --tags --always > ${{ env.OPENSAL_INSTALL_DIR }}\\version.txt
-        type ${{ env.OPENSAL_INSTALL_DIR }}\\version.txt
+        git describe --tags --always > ${{ env.OPENSAL_INSTALL_DIR }}version.txt
+        type ${{ env.OPENSAL_INSTALL_DIR }}version.txt
   
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
@@ -47,7 +47,7 @@ jobs:
         vcpkg integrate install
 
     - name: Build the project
-      run: msbuild src\vcxproj\salamand.sln /t:Rebuild /p:Configuration=Release /p:OutDir=${{ env.OPENSAL_BUILD_DIR }}\\
+      run: msbuild src\vcxproj\salamand.sln /t:Rebuild /p:Configuration=Release
 
     - name: Compose installation directory
       shell: pwsh
@@ -55,10 +55,13 @@ jobs:
         xcopy /E /I /Y ${env:github_workspace}\\convert ${env:OPENSAL_INSTALL_DIR}
         xcopy /E /I /Y ${env:github_workspace}\\doc ${env:OPENSAL_INSTALL_DIR}
         xcopy /E /I /Y ${env:github_workspace}\\src\\res\\toolbars ${env:OPENSAL_INSTALL_DIR}
-        pushd ${env:OPENSAL_BUILD_DIR}
+        xcopy /E /I /Y ${env:github_workspace}\\src\\plugins\\automation\\sample-scripts ${env:OPENSAL_INSTALL_DIR}plugins\\automation\\scripts
+        xcopy /E /I /Y ${env:github_workspace}\\src\\plugins\\ieviewer\\cmark-gfm\\css ${env:OPENSAL_INSTALL_DIR}plugins\\ieviewer\\css
+        xcopy /I /Y ${env:github_workspace}\\src\\plugins\\zip\\zip2sfx\\*.txt ${env:OPENSAL_INSTALL_DIR}plugins\\zip\\zip2sfx
+        xcopy /I /Y ${env:github_workspace}\\src\\plugins\\zip\\zip2sfx\\*.set ${env:OPENSAL_INSTALL_DIR}plugins\\zip\\zip2sfx
+        pushd ${env:OPENSAL_BUILD_DIR}salamander\\${env:BUILD_CONFIGURATION}_${{ matrix.targetplatform }}
         robocopy . ${env:OPENSAL_INSTALL_DIR} *.exe *.dll *.spl *.slg /S
         popd
-        xcopy /E /I /Y ${env:github_workspace}\\src\\plugins\\ieviewer\\cmark-gfm\\css ${env:OPENSAL_INSTALL_DIR}\\plugins\\ieviewer\\css
 
     - name: Finalize installation package
       uses: actions/upload-artifact@v4
