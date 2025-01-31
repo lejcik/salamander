@@ -30,7 +30,7 @@ jobs:
     - name: Create version file
       run: |
         mkdir ${{ env.OPENSAL_INSTALL_DIR }}
-        git describe --tags > ${{ env.OPENSAL_INSTALL_DIR }}\\version.txt
+        git describe --tags --always > ${{ env.OPENSAL_INSTALL_DIR }}\\version.txt
         type ${{ env.OPENSAL_INSTALL_DIR }}\\version.txt
   
     - name: Setup MSBuild
