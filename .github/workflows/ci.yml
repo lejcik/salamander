@@ -9,7 +9,7 @@ on:
 env:
   # Project files expect this variable to be defined.
   OPENSAL_BUILD_DIR: c:\\OpenSalamander\\
-  # Project files expect this variable to be defined.
+  # Directory with installation that will be packed and uploaded as an artifact.
   OPENSAL_INSTALL_DIR: c:\\install\\OpenSalamander\\
   # Configuration type to build.
   BUILD_CONFIGURATION: Release
@@ -50,18 +50,17 @@ jobs:
       run: msbuild src\vcxproj\salamand.sln /t:Rebuild /p:Configuration=Release
 
     - name: Compose installation directory
-      shell: pwsh
       run: |
-        pushd ${env:OPENSAL_BUILD_DIR}salamander\\${env:BUILD_CONFIGURATION}_${{ matrix.targetplatform }}
-        robocopy . ${env:OPENSAL_INSTALL_DIR} *.exe *.dll *.spl *.slg /S
+        pushd${{ env.OPENSAL_BUILD_DIR }}salamander\\${{ env.BUILD_CONFIGURATION }}_${{ matrix.targetplatform }}
+        robocopy . ${{ env.OPENSAL_INSTALL_DIR }} *.exe *.dll *.spl *.slg /S
         popd
-        xcopy /E /I /Y ${env:github_workspace}\\convert ${env:OPENSAL_INSTALL_DIR}
-        xcopy /E /I /Y ${env:github_workspace}\\doc ${env:OPENSAL_INSTALL_DIR}
-        xcopy /E /I /Y ${env:github_workspace}\\src\\res\\toolbars ${env:OPENSAL_INSTALL_DIR}
-        xcopy /E /I /Y ${env:github_workspace}\\src\\plugins\\automation\\sample-scripts ${env:OPENSAL_INSTALL_DIR}plugins\\automation\\scripts
-        xcopy /E /I /Y ${env:github_workspace}\\src\\plugins\\ieviewer\\cmark-gfm\\css ${env:OPENSAL_INSTALL_DIR}plugins\\ieviewer\\css
-        xcopy /I /Y ${env:github_workspace}\\src\\plugins\\zip\\zip2sfx\\*.txt ${env:OPENSAL_INSTALL_DIR}plugins\\zip\\zip2sfx
-        xcopy /I /Y ${env:github_workspace}\\src\\plugins\\zip\\zip2sfx\\*.set ${env:OPENSAL_INSTALL_DIR}plugins\\zip\\zip2sfx
+        xcopy /E /I /Y ${{ github.workspace }}\\convert ${{ env.OPENSAL_INSTALL_DIR }}convert
+        xcopy /E /I /Y ${{ github.workspace }}\\doc ${{ env.OPENSAL_INSTALL_DIR }}doc
+        xcopy /E /I /Y ${{ github.workspace }}\\src\\res\\toolbars ${{ env.OPENSAL_INSTALL_DIR }}toolbars
+        xcopy /E /I /Y ${{ github.workspace }}\\src\\plugins\\automation\\sample-scripts ${{ env.OPENSAL_INSTALL_DIR }}plugins\\automation\\scripts
+        xcopy /E /I /Y ${{ github.workspace }}\\src\\plugins\\ieviewer\\cmark-gfm\\css ${{ env.OPENSAL_INSTALL_DIR }}plugins\\ieviewer\\css
+        xcopy /I /Y ${{ github.workspace }}\\src\\plugins\\zip\\zip2sfx\\*.txt ${{ env.OPENSAL_INSTALL_DIR }}plugins\\zip\\zip2sfx
+        xcopy /I /Y ${{ github.workspace }}\\src\\plugins\\zip\\zip2sfx\\*.set ${{ env.OPENSAL_INSTALL_DIR }}plugins\\zip\\zip2sfx
 
     - name: Finalize installation package
       uses: actions/upload-artifact@v4
