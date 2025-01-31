@@ -52,6 +52,9 @@ jobs:
     - name: Compose installation directory
       shell: pwsh
       run: |
+        pushd ${env:OPENSAL_BUILD_DIR}salamander\\${env:BUILD_CONFIGURATION}_${{ matrix.targetplatform }}
+        robocopy . ${env:OPENSAL_INSTALL_DIR} *.exe *.dll *.spl *.slg /S
+        popd
         xcopy /E /I /Y ${env:github_workspace}\\convert ${env:OPENSAL_INSTALL_DIR}
         xcopy /E /I /Y ${env:github_workspace}\\doc ${env:OPENSAL_INSTALL_DIR}
         xcopy /E /I /Y ${env:github_workspace}\\src\\res\\toolbars ${env:OPENSAL_INSTALL_DIR}
@@ -59,9 +62,6 @@ jobs:
         xcopy /E /I /Y ${env:github_workspace}\\src\\plugins\\ieviewer\\cmark-gfm\\css ${env:OPENSAL_INSTALL_DIR}plugins\\ieviewer\\css
         xcopy /I /Y ${env:github_workspace}\\src\\plugins\\zip\\zip2sfx\\*.txt ${env:OPENSAL_INSTALL_DIR}plugins\\zip\\zip2sfx
         xcopy /I /Y ${env:github_workspace}\\src\\plugins\\zip\\zip2sfx\\*.set ${env:OPENSAL_INSTALL_DIR}plugins\\zip\\zip2sfx
-        pushd ${env:OPENSAL_BUILD_DIR}salamander\\${env:BUILD_CONFIGURATION}_${{ matrix.targetplatform }}
-        robocopy . ${env:OPENSAL_INSTALL_DIR} *.exe *.dll *.spl *.slg /S
-        popd
 
     - name: Finalize installation package
       uses: actions/upload-artifact@v4
