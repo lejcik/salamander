@@ -8,9 +8,9 @@ on:
 
 env:
   # Project files expect this variable to be defined.
-  OPENSAL_BUILD_DIR: ${{ github.workspace }}\\OpenSalamander.bin
+  OPENSAL_BUILD_DIR: c:\\OpenSalamander.bin
   # Project files expect this variable to be defined.
-  OPENSAL_INSTALL_DIR: ${{ github.workspace }}\\OpenSalamander
+  OPENSAL_INSTALL_DIR: c:\\OpenSalamander
   # Configuration type to build.
   BUILD_CONFIGURATION: Release
 
@@ -47,7 +47,7 @@ jobs:
         vcpkg integrate install
 
     - name: Build the project
-      run: msbuild src\vcxproj\salamand.sln /t:Rebuild /p:Configuration=Release
+      run: msbuild src\vcxproj\salamand.sln /t:Rebuild /p:Configuration=Release /p:OutDir=${{ env.OPENSAL_BUILD_DIR }}\\
 
     - name: Compose installation directory
       run: |
