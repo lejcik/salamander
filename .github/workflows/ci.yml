@@ -40,7 +40,7 @@ jobs:
       if: false
       uses: actions/setup-dotnet@v2
       with:
-        dotnet-version: '5.0.17' # required for pe-viewer
+        dotnet-version: '6.0.x' # required for pe-viewer
 
     - name: Setup vcpkg
       run: |
