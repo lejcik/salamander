@@ -1,0 +1,68 @@
+name: "Build the OpenSalamander project"
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  # Project files expect this variable to be defined.
+  OPENSAL_BUILD_DIR: ${{ github.workspace }}\\OpenSalamander.bin
+  # Project files expect this variable to be defined.
+  OPENSAL_INSTALL_DIR: ${{ github.workspace }}\\OpenSalamander
+  # Configuration type to build.
+  BUILD_CONFIGURATION: Release
+
+jobs:
+  build:
+    name: Build
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        targetplatform: [x86, x64]   # arm64
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Create version file
+      run: |
+        mkdir ${{ env.OPENSAL_INSTALL_DIR }}
+        git describe --tags > ${{ env.OPENSAL_INSTALL_DIR }}\\version.txt
+        type ${{ env.OPENSAL_INSTALL_DIR }}\\version.txt
+  
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Setup .NET Framework SDK
+      uses: actions/setup-dotnet@v2
+      with:
+        dotnet-version: '4.7.x' # required for pe-viewer
+
+    - name: Setup vcpkg
+      run: |
+        bootstrap-vcpkg
+        vcpkg integrate install
+
+    - name: Build the project
+      run: msbuild src\vcxproj\salamand.sln /t:Rebuild /p:Configuration=Release
+
+    - name: Compose installation directory
+      run: |
+        xcopy /E /I /Y ${{ github.workspace }}\\convert ${{ env.OPENSAL_INSTALL_DIR }}
+        xcopy /E /I /Y ${{ github.workspace }}\\doc ${{ env.OPENSAL_INSTALL_DIR }}
+        xcopy /E /I /Y ${{ github.workspace }}\\src\\res\\toolbars ${{ env.OPENSAL_INSTALL_DIR }}
+        xcopy /E /I /Y ${{ github.workspace }}\\src\\plugins\\ieviewer\\cmark-gfm\\css ${{ env.OPENSAL_INSTALL_DIR }}
+        pushd ${{ env.OPENSAL_BUILD_DIR }}\\Release_${{ matrix.targetplatform }}
+        robocopy . ${{ env.OPENSAL_INSTALL_DIR }} *.exe *.dll *.spl *.slg /S /E
+        for /f "delims=" %%d in ('dir ${{ env.OPENSAL_INSTALL_DIR }} /ad /s /b ^| sort /r') do rd "%%d" 2>nul
+        popd
+
+    - name: Upload Artifact with installation
+      uses: actions/upload-artifact@v4
+      with:
+        name: OpenSalamander-${{ matrix.targetplatform }}
+        path: ${{ env.OPENSAL_INSTALL_DIR }}
+        retention-days: 10
