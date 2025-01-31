@@ -51,7 +51,7 @@ jobs:
 
     - name: Compose installation directory
       run: |
-        pushd${{ env.OPENSAL_BUILD_DIR }}salamander\\${{ env.BUILD_CONFIGURATION }}_${{ matrix.targetplatform }}
+        pushd ${{ env.OPENSAL_BUILD_DIR }}salamander\\${{ env.BUILD_CONFIGURATION }}_${{ matrix.targetplatform }}
         robocopy . ${{ env.OPENSAL_INSTALL_DIR }} *.exe *.dll *.spl *.slg /S
         popd
         xcopy /E /I /Y ${{ github.workspace }}\\convert ${{ env.OPENSAL_INSTALL_DIR }}convert
