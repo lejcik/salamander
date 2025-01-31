@@ -52,14 +52,14 @@ jobs:
     - name: Compose installation directory
       shell: pwsh
       run: |
-        xcopy /E /I /Y $env:github_workspace\\convert $env:OPENSAL_INSTALL_DIR
-        xcopy /E /I /Y $env:github_workspace\\doc $env:OPENSAL_INSTALL_DIR
-        xcopy /E /I /Y $env:github_workspace\\src\\res\\toolbars $env:OPENSAL_INSTALL_DIR
-        pushd $env:OPENSAL_BUILD_DIR\\Release_$env:matrix_targetplatform
-        robocopy . $env:OPENSAL_INSTALL_DIR *.exe *.dll *.spl *.slg /S /E
-        Get-ChildItem -Path $env:OPENSAL_INSTALL_DIR -Recurse -Directory | Sort-Object -Property FullName -Descending | Remove-Item -Force -Recurse
+        xcopy /E /I /Y ${env:github_workspace}\\convert ${env:OPENSAL_INSTALL_DIR}
+        xcopy /E /I /Y ${env:github_workspace}\\doc ${env:OPENSAL_INSTALL_DIR}
+        xcopy /E /I /Y ${env:github_workspace}\\src\\res\\toolbars ${env:OPENSAL_INSTALL_DIR}
+        pushd ${env:OPENSAL_BUILD_DIR}\\Release_${env:matrix_targetplatform}
+        robocopy . ${env:OPENSAL_INSTALL_DIR} *.exe *.dll *.spl *.slg /S /E
+        Get-ChildItem -Path ${env:OPENSAL_INSTALL_DIR} -Recurse -Directory | Sort-Object -Property FullName -Descending | Remove-Item -Force -Recurse
         popd
-        xcopy /E /I /Y $env:github_workspace\\src\\plugins\\ieviewer\\cmark-gfm\\css $env:OPENSAL_INSTALL_DIR\\plugins\\ieviewer\\css
+        xcopy /E /I /Y ${env:github_workspace}\\src\\plugins\\ieviewer\\cmark-gfm\\css ${env:OPENSAL_INSTALL_DIR}\\plugins\\ieviewer\\css
 
     - name: Finalize installation package
       uses: actions/upload-artifact@v4
