@@ -50,10 +50,9 @@ jobs:
 
     - name: Build the project
       run: |
+        $platform = $env:matrix_targetplatform
         if ($env:matrix_targetplatform -eq "x86") {
           $platform = "Win32"
-        } else {
-          $platform = $env:matrix_targetplatform
         }
         msbuild src\vcxproj\salamand.sln /t:Build /p:Configuration=Release /p:platform=$platform
         msbuild src\vcxproj\salamand.sln /t:Build /p:Configuration="Utils (Release)" /p:platform=$platform
