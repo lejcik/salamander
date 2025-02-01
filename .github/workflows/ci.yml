@@ -47,7 +47,7 @@ jobs:
         vcpkg integrate install
 
     - name: Build the project
-      run: msbuild src\vcxproj\salamand.sln /t:Build /p:Configuration=Release /p:BuildProjectReferences=true
+      run: msbuild src\vcxproj\salamand.sln /t:Build /p:Configuration=Release /p:platform=${{ matrix.targetplatform }}
 
     - name: Compose installation directory
       run: |
