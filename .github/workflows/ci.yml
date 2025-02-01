@@ -47,7 +47,14 @@ jobs:
         vcpkg integrate install
 
     - name: Build the project
-      run: msbuild src\vcxproj\salamand.sln /t:Build /p:Configuration=Release /p:platform=${{ matrix.targetplatform }}
+      run: |
+        # translate targetplatform to MSBuild platform
+        if [ "${{ matrix.targetplatform }}" == "x86" ]; then
+          PLATFORM="Win32"
+        else
+          PLATFORM="${{ matrix.targetplatform }}"
+        fi
+        msbuild src\vcxproj\salamand.sln /t:Build /p:Configuration=Release /p:platform=$PLATFORM
 
     - name: Compose installation directory
       run: |
