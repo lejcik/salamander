@@ -35,6 +35,8 @@ jobs:
   
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
+      with:
+        msbuild-architecture: ${{ matrix.targetplatform }}
 
     - name: Setup .NET Framework SDK
       uses: actions/setup-dotnet@v2
@@ -48,13 +50,7 @@ jobs:
 
     - name: Build the project
       run: |
-        # translate targetplatform to MSBuild platform
-        if [ "${{ matrix.targetplatform }}" == "x86" ]; then
-          PLATFORM="Win32"
-        else
-          PLATFORM="${{ matrix.targetplatform }}"
-        fi
-        msbuild src\vcxproj\salamand.sln /t:Build /p:Configuration=Release /p:platform=$PLATFORM
+        msbuild src\vcxproj\salamand.sln /t:Build /p:Configuration=Release
 
     - name: Compose installation directory
       run: |
