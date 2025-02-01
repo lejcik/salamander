@@ -50,8 +50,13 @@ jobs:
 
     - name: Build the project
       run: |
-        msbuild src\vcxproj\salamand.sln /t:Build /p:Configuration=Release /p:platform=${{ matrix.targetplatform }}
-        msbuild src\vcxproj\salamand.sln /t:Build /p:Configuration="Utils (Release)" /p:platform=${{ matrix.targetplatform }}
+        if "%matrix_targetplatform%" == "x86" (
+          set platform=Win32
+        ) else (
+          set platform=%matrix_targetplatform%
+        )
+        msbuild src\vcxproj\salamand.sln /t:Build /p:Configuration=Release /p:platform=%platform%
+        msbuild src\vcxproj\salamand.sln /t:Build /p:Configuration="Utils (Release)" /p:platform=%platform%
 
     - name: Compose installation directory
       run: |
