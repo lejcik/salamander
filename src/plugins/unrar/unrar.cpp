@@ -22,19 +22,6 @@ CSalamanderSafeFileAbstract* SalamanderSafeFile = NULL;
 // definice promenne pro "dbg.h"
 CSalamanderDebugAbstract* SalamanderDebug = NULL;
 
-HINSTANCE UnRarDll = NULL;
-
-// funkce vyvezene z unrar.dll
-FRAROpenArchiveEx _RAROpenArchiveEx;
-FRARCloseArchive _RARCloseArchive;
-//FRARReadHeader RARReadHeader;
-FRARReadHeaderEx _RARReadHeaderEx;
-FRARProcessFile _RARProcessFile;
-//FRARSetChangeVolProc _RARSetChangeVolProc;
-//FRARSetProcessDataProc _RARSetProcessDataProc;
-FRARSetPassword _RARSetPassword;
-FRARSetCallback _RARSetCallback;
-
 struct CConfiguration Config;
 
 const SYSTEMTIME MinTime = {1980, 01, 2, 01, 00, 00, 00, 000};
@@ -120,59 +107,6 @@ CPluginInterfaceAbstract* WINAPI SalamanderPluginEntry(CSalamanderPluginEntryAbs
 
 // ****************************************************************************
 //
-// stuby do UnRAR.DLL (kvuli callstacku)
-//
-
-HANDLE RAROpenArchiveEx(struct RAROpenArchiveDataEx* ArchiveData)
-{
-    CALL_STACK_MESSAGE1("RarOpenArchiveEx( )");
-    return _RAROpenArchiveEx(ArchiveData);
-}
-
-int RARCloseArchive(HANDLE hArcData)
-{
-    CALL_STACK_MESSAGE1("RARCloseArchive( )");
-    return _RARCloseArchive(hArcData);
-}
-
-int RARReadHeaderEx(HANDLE hArcData, struct RARHeaderDataEx* HeaderData)
-{
-    DEBUG_SLOW_CALL_STACK_MESSAGE1("RARReadHeaderEx( , )");
-    return _RARReadHeaderEx(hArcData, HeaderData);
-}
-
-int RARProcessFile(HANDLE hArcData, int Operation, const char* DestPath, char* DestName)
-{
-    DEBUG_SLOW_CALL_STACK_MESSAGE4("RARProcessFile( , %d, %s, %s", Operation, DestPath, DestName);
-    return _RARProcessFile(hArcData, Operation, DestPath, DestName);
-}
-
-void RARSetCallback(HANDLE hArcData, UNRARCALLBACK Callback, LPARAM UserData)
-{
-    CALL_STACK_MESSAGE2("RARSetCallback( , , 0x%IX)", UserData);
-    _RARSetCallback(hArcData, Callback, UserData);
-}
-
-/*void RARSetChangeVolProc(HANDLE hArcData,int (PASCAL *ChangeVolProc)(char *ArcName,int Mode))
-{
-  CALL_STACK_MESSAGE1("RARSetChangeVolProc( , )");
-  _RARSetChangeVolProc(hArcData, ChangeVolProc);
-}
-
-void RARSetProcessDataProc(HANDLE hArcData,int (PASCAL *ProcessDataProc)(unsigned char *Addr,int Size))
-{
-  CALL_STACK_MESSAGE1("RARSetProcessDataProc( , )");
-  _RARSetProcessDataProc(hArcData, ProcessDataProc);
-}*/
-
-void RARSetPassword(HANDLE hArcData, char* Password)
-{
-    CALL_STACK_MESSAGE1("RARSetPassword( , ***)");
-    _RARSetPassword(hArcData, Password);
-}
-
-// ****************************************************************************
-//
 // CPluginInterface
 //
 
@@ -190,8 +124,6 @@ void CPluginInterface::About(HWND parent)
 BOOL CPluginInterface::Release(HWND parent, BOOL force)
 {
     CALL_STACK_MESSAGE2("CPluginInterface::Release(, %d)", force);
-    //  if (PakLibDLL) FreeLibrary(PakLibDLL);
-    FreeLibrary(UnRarDll);
     return TRUE;
 }
 
@@ -908,37 +840,12 @@ BOOL CPluginInterfaceForArchiver::Init()
 {
     CALL_STACK_MESSAGE1("CPluginInterfaceForArchiver::Init()");
     ArchiveVolumes = NULL;
-    char buf[MAX_PATH + 12];
-    if (!GetModuleFileName(DLLInstance, buf, 1024))
-        return Error(IDS_ERRMODULEFN);
-    SalamanderGeneral->CutDirectory(buf);
-    SalamanderGeneral->SalPathAppend(buf, "unrar.dll", MAX_PATH + 12);
-    UnRarDll = LoadLibrary(buf);
-    if (!UnRarDll)
-        return Error(IDS_ERRLOADLIB, buf);
 
-    FRARGetDllVersion RARGetDllVersion = (FRARGetDllVersion)GetProcAddress(UnRarDll, "RARGetDllVersion");
-    if (RARGetDllVersion == NULL || RARGetDllVersion() < RAR_DLL_VERSION)
+    if (RARGetDllVersion() < RAR_DLL_VERSION)
     {
-        FreeLibrary(UnRarDll);
-        UnRarDll = NULL;
         return Error(IDS_BADDLL);
     }
 
-    if ((_RAROpenArchiveEx = (FRAROpenArchiveEx)GetProcAddress(UnRarDll, "RAROpenArchiveEx")) == NULL ||
-        (_RARCloseArchive = (FRARCloseArchive)GetProcAddress(UnRarDll, "RARCloseArchive")) == NULL ||
-        (_RARProcessFile = (FRARProcessFile)GetProcAddress(UnRarDll, "RARProcessFile")) == NULL ||
-        //(RARReadHeader = (FRARReadHeader) GetProcAddress(UnRarDll, "RARReadHeader")) == NULL ||
-        (_RARReadHeaderEx = (FRARReadHeaderEx)GetProcAddress(UnRarDll, "RARReadHeaderEx")) == NULL ||
-        (_RARSetCallback = (FRARSetCallback)GetProcAddress(UnRarDll, "RARSetCallback")) == NULL ||
-        //(_RARSetChangeVolProc = (FRARSetChangeVolProc) GetProcAddress(UnRarDll, "RARSetChangeVolProc")) == NULL ||
-        //(_RARSetProcessDataProc = (FRARSetProcessDataProc) GetProcAddress(UnRarDll, "RARSetProcessDataProc")) == NULL ||
-        (_RARSetPassword = (FRARSetPassword)GetProcAddress(UnRarDll, "RARSetPassword")) == NULL)
-    {
-        FreeLibrary(UnRarDll);
-        UnRarDll = NULL;
-        return Error(IDS_ERRGETPROCADDR);
-    }
     return TRUE;
 }
 
@@ -1138,7 +1045,8 @@ BOOL CPluginInterfaceForArchiver::ProcessFile(int operation, char* fileName)
     DEBUG_SLOW_CALL_STACK_MESSAGE2("CPluginInterfaceForArchiver::ProcessFile(%d, )", operation);
     int err = 0;
     Success = FALSE;
-    int ret = RARProcessFile(ArcHandle, operation, "", NULL);
+    char DestPath[] = "";
+    int ret = RARProcessFile(ArcHandle, operation, DestPath, NULL);
     if (Abort)
         return FALSE;
     switch (ret)

@@ -2173,11 +2173,27 @@ BOOL CPluginData::InitDLL(HWND parent, BOOL quiet, BOOL waitCursor, BOOL showUns
             s = buf;
         }
 
+        {
+            // pridame cestu k pluginu do dll cest (kvuli knihovnam, ktere plugin pouziva)
+            char path[MAX_PATH];
+            strcpy_s(path, s);
+            char* p = strrchr(path, '\\');
+            if (p)
+                *p = 0;
+            // path, je to adresar?
+            DWORD fileAttributes = GetFileAttributes(path);
+            if (fileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+            {
+                SetDllDirectory(path);
+            }
+        }
+
         // nacteme DLL
         HCURSOR oldCur;
         if (waitCursor)
             oldCur = SetCursor(LoadCursor(NULL, IDC_WAIT));
         DLL = HANDLES(LoadLibrary(s));
+        SetDllDirectory(NULL); // vratime dll cesty do puvodniho stavu
         if (waitCursor)
             SetCursor(oldCur);
         if (DLL == NULL) // chyba
