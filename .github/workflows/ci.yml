@@ -76,12 +76,21 @@ jobs:
     - name: Install redistributable files
       shell: pwsh
       run: |
+        # find Visual Studio install path with vswhere tool
         $vswhere_path = "${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\Installer\\vswhere.exe"
         $vs_install_path = & $vswhere_path -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
-        $vc_redist_path = Get-ChildItem -Path "$vs_install_path\\VC\\Redist\\MSVC" -Recurse -Filter "Microsoft.VC???.CRT" | Select-Object -ExpandProperty FullName
-        Copy-Item -Path "$vc_redist_path\\concrt???.dll" -Destination "${env:OPENSAL_INSTALL_DIR}" -Force
-        Copy-Item -Path "$vc_redist_path\\msvcp???.dll" -Destination "${env:OPENSAL_INSTALL_DIR}" -Force
-        Copy-Item -Path "$vc_redist_path\\vcruntime???.dll" -Destination "${env:OPENSAL_INSTALL_DIR}" -Force
+        # find out VC toolset version
+        $vs_vctoolset_path = "$vs_install_path\\VC\\Auxiliary\\Build"
+        $vctoolset_file = Get-ChildItem -Path $mydir -Filter "Microsoft.VCToolsVersion.v*.default.txt" | Select-Object -ExpandProperty Name
+        if ($fileName -match "VCToolsVersion\.v(\d+)\.default\.txt") {
+          $vctoolset = $matches[1]
+          $vctoolsver = Get-Content -Path "$vs_vctoolset_path\\Microsoft.VCToolsVersion.v${vctoolset}.default.txt" -Raw
+          # copy redistributable files to the installation directory
+          $vc_redist_path = "$vs_install_path\\VC\\Redist\\MSVC\\$vctoolsver\\${{ matrix.targetplatform }}\\Microsoft.VC${vctoolset}.CRT"
+          Copy-Item -Path "$vc_redist_path\\concrt???.dll" -Destination "${env:OPENSAL_INSTALL_DIR}" -Force
+          Copy-Item -Path "$vc_redist_path\\msvcp???.dll" -Destination "${env:OPENSAL_INSTALL_DIR}" -Force
+          Copy-Item -Path "$vc_redist_path\\vcruntime???.dll" -Destination "${env:OPENSAL_INSTALL_DIR}" -Force
+        }
 
     #- name: Build language files
     #- name: Build help files
