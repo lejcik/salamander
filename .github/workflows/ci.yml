@@ -97,6 +97,7 @@ jobs:
     - name: Build help files
       shell: pwsh
       run: |
+        Set-PSDebug -Trace 2
         # help compiler should be available
         $hhc_exe = "${env:ProgramFiles(x86)}\\HTML Help Workshop\\hhc.exe"
         # create path where help files will be installed
