@@ -76,7 +76,7 @@ jobs:
     - name: Install redistributable files
       shell: pwsh
       run: |
-        $VerbosePreference = "Continue"
+        Set-PSDebug -Trace 2
         # find Visual Studio install path with vswhere tool
         $vswhere_path = "${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\Installer\\vswhere.exe"
         $vs_install_path = & $vswhere_path -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
