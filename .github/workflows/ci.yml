@@ -118,8 +118,10 @@ jobs:
           }
           if (Test-Path $help_src) {
             pushd $help_src
-            & $hhc_exe "$plugin_name.hhp"
-            Move-Item -Path "$plugin_name.chm" -Destination $help_dir -Force
+            if (Test-Path "$plugin_name.hhp") {
+              & $hhc_exe "$plugin_name.hhp"
+              Move-Item -Path "$plugin_name.chm" -Destination $help_dir -Force
+            }
             popd
           }
         }
