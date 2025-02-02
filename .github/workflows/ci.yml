@@ -83,14 +83,14 @@ jobs:
         # find out VC toolset version
         $vs_vctoolset_path = "$vs_install_path\\VC\\Auxiliary\\Build"
         $vctoolset_file = Get-ChildItem -Path $vs_vctoolset_path -Filter "Microsoft.VCToolsVersion.v*.default.txt" | Select-Object -ExpandProperty Name
-        if ($fileName -match "Microsoft.VCToolsVersion\.v(\d+)\.default\.txt") {
+        if ($vctoolset_file -match "Microsoft.VCToolsVersion\.v(\d+)\.default\.txt") {
           $vctoolset = $matches[1]
-          $vctoolsver = Get-Content -Path "$vs_vctoolset_path\\Microsoft.VCToolsVersion.v${vctoolset}.default.txt" -Raw
+          $vctoolsver = (Get-Content -Path "$vs_vctoolset_path\\Microsoft.VCToolsVersion.v${vctoolset}.default.txt" -Raw).Trim()
           # copy redistributable files to the installation directory
           $vc_redist_path = "$vs_install_path\\VC\\Redist\\MSVC\\$vctoolsver\\${{ matrix.targetplatform }}\\Microsoft.VC${vctoolset}.CRT"
-          Copy-Item -Path "$vc_redist_path\\concrt${vctoolset}.dll" -Destination "${env:OPENSAL_INSTALL_DIR}" -Force
-          Copy-Item -Path "$vc_redist_path\\msvcp${vctoolset}.dll" -Destination "${env:OPENSAL_INSTALL_DIR}" -Force
-          Copy-Item -Path "$vc_redist_path\\vcruntime${vctoolset}.dll" -Destination "${env:OPENSAL_INSTALL_DIR}" -Force
+          Copy-Item -Path "$vc_redist_path\\concrt???.dll" -Destination "${env:OPENSAL_INSTALL_DIR}" -Force
+          Copy-Item -Path "$vc_redist_path\\msvcp???.dll" -Destination "${env:OPENSAL_INSTALL_DIR}" -Force
+          Copy-Item -Path "$vc_redist_path\\vcruntime???.dll" -Destination "${env:OPENSAL_INSTALL_DIR}" -Force
         }
 
     #- name: Build language files
