@@ -77,13 +77,12 @@ jobs:
       shell: pwsh
       run: |
         Set-PSDebug -Trace 2
-        $FormatEnumerationLimit = -1
         # find Visual Studio install path with vswhere tool
         $vswhere_path = "${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\Installer\\vswhere.exe"
         $vs_install_path = & $vswhere_path -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
         # find out VC toolset version
         $vs_vctoolset_path = "$vs_install_path\\VC\\Auxiliary\\Build"
-        $vctoolset_file = Get-ChildItem -Path $mydir -Filter "Microsoft.VCToolsVersion.v*.default.txt" | Select-Object -ExpandProperty Name
+        $vctoolset_file = Get-ChildItem -Path $vs_vctoolset_path -Filter "Microsoft.VCToolsVersion.v*.default.txt" | Select-Object -ExpandProperty Name
         if ($fileName -match "Microsoft.VCToolsVersion\.v(\d+)\.default\.txt") {
           $vctoolset = $matches[1]
           $vctoolsver = Get-Content -Path "$vs_vctoolset_path\\Microsoft.VCToolsVersion.v${vctoolset}.default.txt" -Raw
