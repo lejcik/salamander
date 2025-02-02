@@ -45,6 +45,7 @@ jobs:
         dotnet-version: '6.0.x' # required for pe-viewer
 
     - name: Setup vcpkg
+      if: false
       run: |
         bootstrap-vcpkg
         vcpkg integrate install
@@ -74,17 +75,15 @@ jobs:
         xcopy /I /Y ${{ github.workspace }}\\src\\plugins\\zip\\zip2sfx\\*.set ${{ env.OPENSAL_INSTALL_DIR }}plugins\\zip\\zip2sfx
 
     - name: Install redistributable files
+      if: false
       shell: pwsh
       run: |
-        Set-PSDebug -Trace 2
         # find Visual Studio install path with vswhere tool
         $vswhere_path = "${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\Installer\\vswhere.exe"
         $vs_install_path = & $vswhere_path -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
         # find out VC toolset version
         $vs_vctoolset_path = "$vs_install_path\\VC\\Auxiliary\\Build"
-        dir $vs_vctoolset_path
         $vctoolset_file = Get-ChildItem -Path $vs_vctoolset_path -Filter "Microsoft.VCRedistVersion.v???.default.props" | Select-Object -ExpandProperty Name
-        echo $vctoolset_file
         if ($vctoolset_file -match "Microsoft.VCRedistVersion\.v(\d+)\.default\.props") {
           $vctoolset = $matches[1]
           $vctoolsver = (Get-Content -Path "$vs_vctoolset_path\\Microsoft.VCRedistVersion.default.txt" -Raw).Trim()
@@ -95,8 +94,37 @@ jobs:
           Copy-Item -Path "$vc_redist_path\\vcruntime???.dll" -Destination "${env:OPENSAL_INSTALL_DIR}" -Force
         }
 
+    - name: Build help files
+      shell: pwsh
+      run: |
+        # help compiler should be available
+        $hhc_exe = "${env:ProgramFiles(x86)}\\HTML Help Workshop\\hhc.exe"
+        # create path where help files will be installed
+        $help_dir = "${env:OPENSAL_INSTALL_DIR}\\help\\english"
+        New-Item -ItemType Directory -Path $help_dir -Force | Out-Null
+        # compile main help file
+        pushd help\\src
+        & $hhc_exe salamand.hhp
+        Move-Item -Path "salamand.chm" -Destination $help_dir -Force
+        popd
+        # compile help for plugins
+        $plugin_dirs = Get-ChildItem -Path "src\\plugins" -Directory | Select-Object -ExpandProperty FullName
+        foreach ($subdir in $plugin_dirs) {
+          $plugin_name = Split-Path $subdir -Leaf
+          $help_src = "$subdir\\help"
+          # pak plugin has different directory structure
+          if ($plugin_name -eq "pak") {
+            $help_src = "$subdir\\spl\\help"
+          }
+          if (Test-Path $help_src) {
+            pushd $help_src
+            & $hhc_exe "$plugin_name.hhp"
+            Move-Item -Path "plugin_name.chm" -Destination $help_dir -Force
+            popd
+          }
+        }
+
     #- name: Build language files
-    #- name: Build help files
     #- name: Build setup.exe package
 
     - name: Finalize installation package
