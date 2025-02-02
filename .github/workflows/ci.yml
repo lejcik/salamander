@@ -76,7 +76,9 @@ jobs:
     - name: Install redistributable files
       shell: pwsh
       run: |
-        $vc_redist_path = Get-ChildItem -Path "${env:VCToolsRedistDir}${{ matrix.targetplatform }}\\Microsoft.VC???.CRT" | Select-Object -ExpandProperty FullName
+        $vswhere_path = "${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\Installer\\vswhere.exe"
+        $vs_install_path = & $vswhere_path -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+        $vc_redist_path = Get-ChildItem -Path "$vs_install_path\\VC\\Redist\\MSVC" -Recurse -Filter "Microsoft.VC???.CRT" | Select-Object -ExpandProperty FullName
         Copy-Item -Path "$vc_redist_path\\concrt???.dll" -Destination "${env:OPENSAL_INSTALL_DIR}" -Force
         Copy-Item -Path "$vc_redist_path\\msvcp???.dll" -Destination "${env:OPENSAL_INSTALL_DIR}" -Force
         Copy-Item -Path "$vc_redist_path\\vcruntime???.dll" -Destination "${env:OPENSAL_INSTALL_DIR}" -Force
