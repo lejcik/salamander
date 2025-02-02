@@ -106,6 +106,7 @@ jobs:
         # compile main help file
         pushd help\\src
         & $hhc_exe salamand.hhp
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         Move-Item -Path "salamand.chm" -Destination $help_dir -Force
         popd
         # compile help for plugins
@@ -121,6 +122,7 @@ jobs:
             pushd $help_src
             if (Test-Path "$plugin_name.hhp") {
               & $hhc_exe "$plugin_name.hhp"
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
               Move-Item -Path "$plugin_name.chm" -Destination $help_dir -Force
             }
             popd
