@@ -39,19 +39,16 @@ jobs:
         msbuild-architecture: ${{ matrix.targetplatform }}
 
     - name: Setup .NET Framework SDK
-      if: false
       uses: actions/setup-dotnet@v2
       with:
         dotnet-version: '6.0.x' # required for pe-viewer
 
     - name: Setup vcpkg
-      if: false
       run: |
         bootstrap-vcpkg
         vcpkg integrate install
 
     - name: Build the project
-      if: false
       run: |
         $platform = "${{ matrix.targetplatform }}"
         if ("${{ matrix.targetplatform }}" -eq "x86") {
@@ -61,7 +58,6 @@ jobs:
         msbuild src\vcxproj\salamand.sln /t:Build /p:Configuration="Utils (Release)" /p:platform=$platform
 
     - name: Compose installation directory
-      if: false
       run: |
         pushd ${{ env.OPENSAL_BUILD_DIR }}salamander\\${{ env.BUILD_CONFIGURATION }}_${{ matrix.targetplatform }}
         robocopy . ${{ env.OPENSAL_INSTALL_DIR }} *.exe *.dll *.spl *.slg /S
@@ -75,7 +71,6 @@ jobs:
         xcopy /I /Y ${{ github.workspace }}\\src\\plugins\\zip\\zip2sfx\\*.set ${{ env.OPENSAL_INSTALL_DIR }}plugins\\zip\\zip2sfx
 
     - name: Install redistributable files
-      if: false
       shell: pwsh
       run: |
         # find Visual Studio install path with vswhere tool
@@ -97,7 +92,6 @@ jobs:
     - name: Build help files
       shell: pwsh
       run: |
-        Set-PSDebug -Trace 2
         # help compiler should be available
         $hhc_exe = "${env:ProgramFiles(x86)}\\HTML Help Workshop\\hhc.exe"
         # create path where help files will be installed
