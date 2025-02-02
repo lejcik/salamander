@@ -39,6 +39,7 @@ jobs:
         msbuild-architecture: ${{ matrix.targetplatform }}
 
     - name: Setup .NET Framework SDK
+      if: false
       uses: actions/setup-dotnet@v2
       with:
         dotnet-version: '6.0.x' # required for pe-viewer
@@ -59,6 +60,7 @@ jobs:
         msbuild src\vcxproj\salamand.sln /t:Build /p:Configuration="Utils (Release)" /p:platform=$platform
 
     - name: Compose installation directory
+      if: false
       run: |
         pushd ${{ env.OPENSAL_BUILD_DIR }}salamander\\${{ env.BUILD_CONFIGURATION }}_${{ matrix.targetplatform }}
         robocopy . ${{ env.OPENSAL_INSTALL_DIR }} *.exe *.dll *.spl *.slg /S
