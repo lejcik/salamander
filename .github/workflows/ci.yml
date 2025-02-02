@@ -83,11 +83,11 @@ jobs:
         # find out VC toolset version
         $vs_vctoolset_path = "$vs_install_path\\VC\\Auxiliary\\Build"
         dir $vs_vctoolset_path
-        $vctoolset_file = Get-ChildItem -Path $vs_vctoolset_path -Filter "Microsoft.VCToolsVersion.v???.default.txt" | Select-Object -ExpandProperty Name
+        $vctoolset_file = Get-ChildItem -Path $vs_vctoolset_path -Filter "Microsoft.VCRedistVersion.v???.default.txt" | Select-Object -ExpandProperty Name
         echo $vctoolset_file
-        if ($vctoolset_file -match "Microsoft.VCToolsVersion\.v(\d+)\.default\.txt") {
+        if ($vctoolset_file -match "Microsoft.VCRedistVersion\.v(\d+)\.default\.txt") {
           $vctoolset = $matches[1]
-          $vctoolsver = (Get-Content -Path "$vs_vctoolset_path\\Microsoft.VCToolsVersion.v${vctoolset}.default.txt" -Raw).Trim()
+          $vctoolsver = (Get-Content -Path "$vs_vctoolset_path\\Microsoft.VCRedistVersion.default.txt" -Raw).Trim()
           # copy redistributable files to the installation directory
           $vc_redist_path = "$vs_install_path\\VC\\Redist\\MSVC\\$vctoolsver\\${{ matrix.targetplatform }}\\Microsoft.VC${vctoolset}.CRT"
           Copy-Item -Path "$vc_redist_path\\concrt???.dll" -Destination "${env:OPENSAL_INSTALL_DIR}" -Force
