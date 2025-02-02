@@ -49,6 +49,7 @@ jobs:
         vcpkg integrate install
 
     - name: Build the project
+      if: false
       run: |
         $platform = "${{ matrix.targetplatform }}"
         if ("${{ matrix.targetplatform }}" -eq "x86") {
@@ -69,6 +70,14 @@ jobs:
         xcopy /E /I /Y ${{ github.workspace }}\\src\\plugins\\ieviewer\\cmark-gfm\\css ${{ env.OPENSAL_INSTALL_DIR }}plugins\\ieviewer\\css
         xcopy /I /Y ${{ github.workspace }}\\src\\plugins\\zip\\zip2sfx\\*.txt ${{ env.OPENSAL_INSTALL_DIR }}plugins\\zip\\zip2sfx
         xcopy /I /Y ${{ github.workspace }}\\src\\plugins\\zip\\zip2sfx\\*.set ${{ env.OPENSAL_INSTALL_DIR }}plugins\\zip\\zip2sfx
+
+    - name: Install redistributable files
+      shell: pwsh
+      run: |
+        $vc_redist_path = Get-ChildItem -Path "${env:VCToolsRedistDir}${{ matrix.targetplatform }}\\Microsoft.VC???.CRT" | Select-Object -ExpandProperty FullName
+        Copy-Item -Path "$vc_redist_path\\concrt???.dll" -Destination "${env:OPENSAL_INSTALL_DIR}" -Force
+        Copy-Item -Path "$vc_redist_path\\msvcp???.dll" -Destination "${env:OPENSAL_INSTALL_DIR}" -Force
+        Copy-Item -Path "$vc_redist_path\\vcruntime???.dll" -Destination "${env:OPENSAL_INSTALL_DIR}" -Force
 
     #- name: Build language files
     #- name: Build help files
