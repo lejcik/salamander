@@ -11,8 +11,8 @@
 #include "plugins.h"
 #include "fileswnd.h"
 
-#include "nanosvg\nanosvg.h"
-#include "nanosvg\nanosvgrast.h"
+#include <nanosvg/nanosvg.h>
+#include <nanosvg/nanosvgrast.h>
 #include "svg.h"
 
 struct CButtonData
