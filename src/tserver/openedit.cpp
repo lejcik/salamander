@@ -10,7 +10,7 @@
 
 #pragma push_macro("new")
 #undef new
-#include "wil/com.h"
+#include <wil/com.h>
 #pragma pop_macro("new")
 
 #include "trace.h"
