@@ -187,8 +187,8 @@ BOOL CSocket::Shutdown(DWORD* error)
     {
         if (SSLConn)
         {
-            int err = SSLLib.SSL_shutdown(SSLConn);
-            SSLLib.SSL_free(SSLConn);
+            int err = SSL_shutdown(SSLConn);
+            SSL_free(SSLConn);
             SSLConn = NULL;
         }
         if (shutdown(Socket, SD_SEND) != SOCKET_ERROR)
@@ -223,8 +223,8 @@ BOOL CSocket::CloseSocket(DWORD* error)
     {
         if (SSLConn)
         {
-            int err = SSLLib.SSL_shutdown(SSLConn);
-            SSLLib.SSL_free(SSLConn);
+            int err = SSL_shutdown(SSLConn);
+            SSL_free(SSLConn);
             SSLConn = NULL;
         }
         if (closesocket(Socket) != SOCKET_ERROR)
@@ -1088,7 +1088,7 @@ void CSocket::ProxySendBytes(const char* buf, int bufLen, int index, BOOL* csLef
         {
             while (1) // cyklus nutny kvuli funkci 'send' (pokud nastane chyba "would block", ohlasi ji az v dalsim kole)
             {
-                int sentLen = SSLLib.SSL_write(SSLConn, buf + len, bufLen - len);
+                int sentLen = SSL_write(SSLConn, buf + len, bufLen - len);
                 if (sentLen > 0) // aspon neco je uspesne odeslano (nebo spis prevzato Windowsama, doruceni je ve hvezdach)
                 {
                     len += sentLen;
@@ -1099,7 +1099,7 @@ void CSocket::ProxySendBytes(const char* buf, int bufLen, int index, BOOL* csLef
                 {
                     ProxyErrorCode = pecSendingBytes;
                     // je-li WSAEWOULDBLOCK -> nic dalsiho uz poslat nejde (Windowsy jiz nemaji buffer space), zbytek poslat az po FD_WRITE (zatim neimplementovano, snad zbytecne)
-                    ProxyWinError = SSLtoWS2Error(SSLLib.SSL_get_error(SSLConn, sentLen));
+                    ProxyWinError = SSLtoWS2Error(SSL_get_error(SSLConn, sentLen));
                     SocketState = isConnect ? ssConnectFailed : ssListenFailed;
                     HANDLES(LeaveCriticalSection(&SocketCritSect));
                     if (isConnect)
@@ -2227,7 +2227,7 @@ void CSocket::ReceiveNetEvent(LPARAM lParam, int index)
                 {
                     while (1)
                     {
-                        int r = SSLLib.SSL_read(SSLConn, buf, 500);
+                        int r = SSL_read(SSLConn, buf, 500);
                         if (r <= 0)
                             break; // cyklime do chyby nebo nuly (0 = gracefully closed)
                         else

@@ -496,9 +496,9 @@ void CKeepAliveDataConSocket::ReceiveNetEvent(LPARAM lParam, int index)
                         len = recv(Socket, buf, KEEPALIVEDATACON_READBUFSIZE, 0);
                     else
                     {
-                        if (SSLLib.SSL_pending(SSLConn) > 0) // je-li neprazdny interni SSL buffer nedojde vubec k volani recv() a tudiz neprijde dalsi FD_READ, tedy musime si ho poslat sami, jinak se prenos dat zastavi
+                        if (SSL_pending(SSLConn) > 0) // je-li neprazdny interni SSL buffer nedojde vubec k volani recv() a tudiz neprijde dalsi FD_READ, tedy musime si ho poslat sami, jinak se prenos dat zastavi
                             PostMessage(SocketsThread->GetHiddenWindow(), Msg, (WPARAM)Socket, FD_READ);
-                        len = SSLLib.SSL_read(SSLConn, buf, KEEPALIVEDATACON_READBUFSIZE);
+                        len = SSL_read(SSLConn, buf, KEEPALIVEDATACON_READBUFSIZE);
                     }
                     if (len >= 0 /*!= SOCKET_ERROR*/) // mozna jsme neco precetli (0 = spojeni uz je zavrene)
                     {
@@ -510,7 +510,7 @@ void CKeepAliveDataConSocket::ReceiveNetEvent(LPARAM lParam, int index)
                         }
                         else if (SSLConn)
                         {
-                            if ((WSAGETSELECTEVENT(lParam) == FD_READ) && (6 /*SSL_ERROR_ZERO_RETURN*/ == SSLLib.SSL_get_error(SSLConn, 0)))
+                            if ((WSAGETSELECTEVENT(lParam) == FD_READ) && (6 /*SSL_ERROR_ZERO_RETURN*/ == SSL_get_error(SSLConn, 0)))
                             {
                                 // seen at ftps://ftp.smartftp.com
                                 // SSL_ERROR_ZERO_RETURN: The TLS/SSL connection has been closed.
@@ -525,7 +525,7 @@ void CKeepAliveDataConSocket::ReceiveNetEvent(LPARAM lParam, int index)
                     }
                     else
                     {
-                        DWORD err = !SSLConn ? WSAGetLastError() : SSLtoWS2Error(SSLLib.SSL_get_error(SSLConn, len));
+                        DWORD err = !SSLConn ? WSAGetLastError() : SSLtoWS2Error(SSL_get_error(SSLConn, len));
                         ;
                         if (err != WSAEWOULDBLOCK)
                         {
@@ -1181,7 +1181,7 @@ void CUploadDataConnectionSocket::ReceiveNetEvent(LPARAM lParam, int index)
                                 if (!SSLConn)
                                     sentLen = send(Socket, BytesToWrite + BytesToWriteOffset, paketSize, 0);
                                 else
-                                    sentLen = SSLLib.SSL_write(SSLConn, BytesToWrite + BytesToWriteOffset, paketSize);
+                                    sentLen = SSL_write(SSLConn, BytesToWrite + BytesToWriteOffset, paketSize);
 
                                 if (sentLen >= 0 /*!= SOCKET_ERROR*/) // aspon neco je uspesne odeslano (nebo spis prevzato Windowsama, doruceni je ve hvezdach)
                                 {
@@ -1280,7 +1280,7 @@ void CUploadDataConnectionSocket::ReceiveNetEvent(LPARAM lParam, int index)
                                 }
                                 else
                                 {
-                                    DWORD err = !SSLConn ? WSAGetLastError() : SSLtoWS2Error(SSLLib.SSL_get_error(SSLConn, sentLen));
+                                    DWORD err = !SSLConn ? WSAGetLastError() : SSLtoWS2Error(SSL_get_error(SSLConn, sentLen));
                                     if (err == WSAEWOULDBLOCK)       // nic dalsiho uz poslat nejde (Windowsy jiz nemaji buffer space)
                                         WaitingForWriteEvent = TRUE; // prestaneme posilat, cekame na prijeti dalsiho FD_WRITE
                                     else                             // jina chyba - ohlasime ji

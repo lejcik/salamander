@@ -2,65 +2,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "precomp.h"
-
-// Error codes returned by SSL_get_error()
-#define SSL_ERROR_NONE 0
-#define SSL_ERROR_SSL 1
-#define SSL_ERROR_WANT_READ 2
-#define SSL_ERROR_WANT_WRITE 3
-#define SSL_ERROR_WANT_X509_LOOKUP 4
-#define SSL_ERROR_SYSCALL 5 // look at error stack/return value/errno
-#define SSL_ERROR_ZERO_RETURN 6
-#define SSL_ERROR_WANT_CONNECT 7
-#define SSL_ERROR_WANT_ACCEPT 8
-
-// Return codes of SSL_read()
-#define SSL_NOTHING 1
-#define SSL_READING 2
-#define SSL_WRITING 3
-#define SSL_X509_LOOKUP 4
-
-// Transferred from WinSocket
-// #define WSAECONNCLOSED                 (WSABASEERR + 10000)
+#include <openssl/err.h>
+#include <openssl/rand.h>
 
 #define SSL_CTRL_OPTIONS 32
-
-/* SSL_OP_ALL: various bug workarounds that should be rather harmless.
- *             This used to be 0x000FFFFFL before 0.9.7. */
-#define SSL_OP_ALL 0x80000BFFL
-
-#define SSL_OP_NO_SSLv2 0x01000000L
 
 #define MAX_DER_CERT_SIZE 5120 // Is 5KB enough?
 
 #define SizeOf(x) (sizeof(x) / sizeof(x[0]))
-
-#ifndef CERT_VERIFY_REV_SERVER_OCSP_FLAG
-#define CERT_VERIFY_REV_SERVER_OCSP_FLAG 8 // defined in SDK's newer than 2003
-#endif
-
-// Brought from ssl.h
-#define SSL_ST_CONNECT 0x1000
-#define SSL_ST_ACCEPT 0x2000
-#define SSL_ST_MASK 0x0FFF
-#define SSL_ST_INIT (SSL_ST_CONNECT | SSL_ST_ACCEPT)
-#define SSL_ST_BEFORE 0x4000
-#define SSL_ST_OK 0x03
-#define SSL_ST_RENEGOTIATE (0x04 | SSL_ST_INIT)
-
-#define SSL_CB_LOOP 0x01
-#define SSL_CB_EXIT 0x02
-#define SSL_CB_READ 0x04
-#define SSL_CB_WRITE 0x08
-#define SSL_CB_ALERT 0x4000 /* used in callback */
-#define SSL_CB_READ_ALERT (SSL_CB_ALERT | SSL_CB_READ)
-#define SSL_CB_WRITE_ALERT (SSL_CB_ALERT | SSL_CB_WRITE)
-#define SSL_CB_ACCEPT_LOOP (SSL_ST_ACCEPT | SSL_CB_LOOP)
-#define SSL_CB_ACCEPT_EXIT (SSL_ST_ACCEPT | SSL_CB_EXIT)
-#define SSL_CB_CONNECT_LOOP (SSL_ST_CONNECT | SSL_CB_LOOP)
-#define SSL_CB_CONNECT_EXIT (SSL_ST_CONNECT | SSL_CB_EXIT)
-#define SSL_CB_HANDSHAKE_START 0x10
-#define SSL_CB_HANDSHAKE_DONE 0x20
 
 sSSLLib SSLLib;
 
@@ -76,121 +25,6 @@ BYTE hex(char c)
         return c - 'a' + 10;
     return 0;
 }
-
-#define IMP_SYMBOL(name) {(void**)&SSLLib.name, #name},
-
-typedef struct _SymbolInfo
-{
-    void** Addr;
-    const char* Name;
-} TSymbolInfo, *PSymbolInfo;
-
-static TSymbolInfo SSLSymbols[] = {
-    IMP_SYMBOL(SSL_get_error)
-        IMP_SYMBOL(SSL_write)
-            IMP_SYMBOL(SSL_read)
-                IMP_SYMBOL(SSL_library_init)
-                    IMP_SYMBOL(SSL_load_error_strings)
-    //   IMP_SYMBOL(SSLv3_client_method)
-    IMP_SYMBOL(SSLv23_client_method)
-        IMP_SYMBOL(SSL_CTX_new)
-            IMP_SYMBOL(SSL_CTX_free)
-                IMP_SYMBOL(SSL_CTX_ctrl)
-                    IMP_SYMBOL(SSL_new)
-                        IMP_SYMBOL(SSL_free)
-                            IMP_SYMBOL(SSL_set_fd)
-                                IMP_SYMBOL(SSL_connect)
-                                    IMP_SYMBOL(SSL_shutdown)
-                                        IMP_SYMBOL(SSL_get_current_cipher)
-                                            IMP_SYMBOL(SSL_CIPHER_get_version)
-                                                IMP_SYMBOL(SSL_CIPHER_get_bits)
-                                                    IMP_SYMBOL(SSL_CIPHER_get_name)
-                                                        IMP_SYMBOL(SSL_get_verify_result)
-                                                            IMP_SYMBOL(SSL_set_verify)
-                                                                IMP_SYMBOL(SSL_pending)
-                                                                    IMP_SYMBOL(SSL_get_peer_certificate)
-                                                                        IMP_SYMBOL(SSL_get_peer_cert_chain)
-                                                                            IMP_SYMBOL(SSL_COMP_get_compression_methods)
-                                                                                IMP_SYMBOL(SSL_get1_session)
-                                                                                    IMP_SYMBOL(SSL_set_session)
-                                                                                        IMP_SYMBOL(SSL_SESSION_free)
-                                                                                            IMP_SYMBOL(SSL_ctrl)
-#ifdef _DEBUG
-                                                                                                IMP_SYMBOL(SSL_state_string_long)
-                                                                                                    IMP_SYMBOL(SSL_alert_type_string_long)
-                                                                                                        IMP_SYMBOL(SSL_alert_desc_string_long)
-                                                                                                            IMP_SYMBOL(SSL_set_info_callback)
-#endif
-                                                                                                                {NULL, NULL}};
-
-static TSymbolInfo SSLUtilSymbols[] = {
-    IMP_SYMBOL(SSLeay_version)
-#ifdef _DEBUG
-        IMP_SYMBOL(X509_verify_cert_error_string)
-#endif
-            IMP_SYMBOL(X509_NAME_oneline)
-                IMP_SYMBOL(i2d_X509)
-                    IMP_SYMBOL(X509_free)
-                        IMP_SYMBOL(PKCS7_new)
-                            IMP_SYMBOL(PKCS7_SIGNED_new)
-                                IMP_SYMBOL(OBJ_nid2obj)
-                                    IMP_SYMBOL(ASN1_INTEGER_set)
-                                        IMP_SYMBOL(PKCS7_free)
-                                            IMP_SYMBOL(i2d_PKCS7)
-                                                IMP_SYMBOL(sk_new_null)
-    //   IMP_SYMBOL(BIO_s_mem)
-    //   IMP_SYMBOL(BIO_new)
-    //   IMP_SYMBOL(BIO_free)
-    //   IMP_SYMBOL(BIO_read)
-    //   IMP_SYMBOL(ERR_clear_error)
-    IMP_SYMBOL(ERR_error_string)
-    //   IMP_SYMBOL(ERR_print_errors)
-    IMP_SYMBOL(ERR_get_error)
-    //   IMP_SYMBOL(ERR_get_state)
-    IMP_SYMBOL(ERR_remove_state)
-        IMP_SYMBOL(ENGINE_cleanup)
-            IMP_SYMBOL(CONF_modules_finish)
-                IMP_SYMBOL(CONF_modules_free)
-                    IMP_SYMBOL(CONF_modules_unload)
-                        IMP_SYMBOL(ERR_free_strings)
-                            IMP_SYMBOL(sk_free)
-                                IMP_SYMBOL(EVP_cleanup)
-                                    IMP_SYMBOL(CRYPTO_cleanup_all_ex_data)
-                                        IMP_SYMBOL(CRYPTO_num_locks)
-                                            IMP_SYMBOL(CRYPTO_set_locking_callback)
-                                                IMP_SYMBOL(RAND_seed){NULL, NULL}};
-
-static bool LoadSymbols(LPCTSTR libName, LPCTSTR altLibName, HINSTANCE& hLib, PSymbolInfo pSymbols, int logUID)
-{
-    hLib = LoadLibrary(libName);
-    if (!hLib && altLibName)
-    {
-        hLib = LoadLibrary(altLibName);
-        if (hLib)
-            libName = altLibName;
-    }
-    if (hLib)
-        SalamanderDebug->AddModuleWithPossibleMemoryLeaks(libName);
-    char buf[MAX_PATH + 400];
-    if (!hLib)
-    {
-        sprintf(buf, "Err %u: Unable to load %s\r\n", GetLastError(), libName);
-        Logs.LogMessage(logUID, buf, -1);
-        return false;
-    }
-    while (pSymbols->Addr)
-    {
-        *pSymbols->Addr = GetProcAddress(hLib, pSymbols->Name);
-        if (!*pSymbols->Addr)
-        {
-            sprintf(buf, "Err %u: Unable to find %s in %s\r\n", GetLastError(), pSymbols->Name, libName);
-            Logs.LogMessage(logUID, buf, -1);
-            return false;
-        }
-        pSymbols++;
-    }
-    return true;
-} /* LoadSymbols */
 
 static void AddNewLine(char*& buf, int& maxlen)
 {
@@ -397,24 +231,24 @@ static void InfoCallback(const SSL* s, int where, int ret)
 
     if (where & SSL_CB_LOOP)
     {
-        sprintf(buf, "%s:%s\n", str, SSLLib.SSL_state_string_long(s));
+        sprintf(buf, "%s:%s\n", str, SSL_state_string_long(s));
     }
     else if (where & SSL_CB_ALERT)
     {
         str = (where & SSL_CB_READ) ? "read" : "write";
         sprintf(buf, "SSL3 alert %s:%s:%s\n", str,
-                SSLLib.SSL_alert_type_string_long(ret),
-                SSLLib.SSL_alert_desc_string_long(ret));
+                SSL_alert_type_string_long(ret),
+                SSL_alert_desc_string_long(ret));
     }
     else if (where & SSL_CB_EXIT)
     {
         if (ret == 0)
         {
-            sprintf(buf, "%s:failed in %s\n", str, SSLLib.SSL_state_string_long(s));
+            sprintf(buf, "%s:failed in %s\n", str, SSL_state_string_long(s));
         }
         else if (ret < 0)
         {
-            sprintf(buf, "%s:error %d in %s\n", str, ret, SSLLib.SSL_state_string_long(s));
+            sprintf(buf, "%s:error %d in %s\n", str, ret, SSL_state_string_long(s));
         }
     }
     if (buf[0])
@@ -430,9 +264,9 @@ void WriteSSLErrorStackToLog(int logUID, const char* errSrc)
     // log OpenSSL error stack
     int err2;
     char buffer[256]; // pisou: at least 120 bytes
-    while ((err2 = SSLLib.ERR_get_error()) != 0)
+    while ((err2 = ERR_get_error()) != 0)
     {
-        SSLLib.ERR_error_string(err2, buffer);
+        ERR_error_string(err2, buffer);
         Logs.LogMessage(logUID, "SSL ERROR: ", -1);
         Logs.LogMessage(logUID, errSrc, -1);
         Logs.LogMessage(logUID, ": ", -1);
@@ -462,7 +296,7 @@ BOOL CSocket::EncryptSocket(int logUID, int* sslErrorOccured, CCertificate** unv
     if (!bSSLInited)
         return FALSE;
     WriteSSLErrorStackToLog(logUID, "unknown source");
-    Conn = SSLLib.SSL_new(SSLLib.Ctx);
+    Conn = SSL_new(SSLLib.Ctx);
     if (Conn)
     {
         HWND hWnd = SocketsThread->GetHiddenWindow();
@@ -479,35 +313,35 @@ BOOL CSocket::EncryptSocket(int logUID, int* sslErrorOccured, CCertificate** unv
             DWORD* crash = NULL;
             *crash = 0;
         }
-        if (!SSLLib.SSL_set_fd(Conn, (int)Socket))
+        if (!SSL_set_fd(Conn, (int)Socket))
             WriteSSLErrorStackToLog(logUID, "SSL_set_fd");
-        SSLLib.SSL_set_verify(Conn, 0, NULL);
+        SSL_set_verify(Conn, 0, NULL);
 
 #ifdef _DEBUG
-        SSLLib.SSL_set_info_callback(Conn, InfoCallback);
+        SSL_set_info_callback(Conn, InfoCallback);
         Logs.LogMessage(logUID, "SSL DEBUG INFO: See Trace Server for messages from information callback for this SSL connection.\r\n", -1);
 #endif
 
         BOOL testReuseSSLSession = FALSE;
         if (conForReuse != NULL && conForReuse->SSLConn != NULL && conForReuse->ReuseSSLSession != 2 /* ne */)
         {
-            SSL_SESSION* ssl_sessionid = SSLLib.SSL_get1_session(conForReuse->SSLConn); // sessionid.addref()
+            SSL_SESSION* ssl_sessionid = SSL_get1_session(conForReuse->SSLConn); // sessionid.addref()
             if (ssl_sessionid == NULL)
                 Logs.LogMessage(logUID, "SSL ERROR: SSL_get1_session returns NULL!\r\n", -1);
             else
             {
-                if (!SSLLib.SSL_set_session(Conn, ssl_sessionid))
+                if (!SSL_set_session(Conn, ssl_sessionid))
                     WriteSSLErrorStackToLog(logUID, "SSL_set_session");
                 else
                     testReuseSSLSession = TRUE;
-                SSLLib.SSL_SESSION_free(ssl_sessionid); // sessionid.release()
+                SSL_SESSION_free(ssl_sessionid); // sessionid.release()
             }
         }
 
         TRACE_I("SSL_connect: begin");
         {
             CALL_STACK_MESSAGE1("CSocket::EncryptSocket::SSL_connect()");
-            err = SSLLib.SSL_connect(Conn);
+            err = SSL_connect(Conn);
         }
         TRACE_I("SSL_connect: end");
 
@@ -515,7 +349,7 @@ BOOL CSocket::EncryptSocket(int logUID, int* sslErrorOccured, CCertificate** unv
         {
             if (testReuseSSLSession)
             {
-                if (SSLLib.SSL_session_reused(Conn))
+                if (SSL_session_reused(Conn))
                 {
                     Logs.LogMessage(logUID, "SSL INFO: SSL session reused for data-connection\r\n", -1);
                     if (conForReuse->ReuseSSLSession == 0 /* zkusit */)
@@ -536,64 +370,66 @@ BOOL CSocket::EncryptSocket(int logUID, int* sslErrorOccured, CCertificate** unv
                 }
             }
 
-            void* ssl_cipher;
-            char* ssl_version;
-            char* cipher_name;
+            const SSL_CIPHER* ssl_cipher;
+            const char* ssl_version;
+            const char* cipher_name;
             int ssl_bits;
             X509* peerCert;
             STACK_OF(X509) * certStack;
             BYTE *DERCert, *PKCS7Cert = NULL, *tmp;
             int DERCertLen, PKCS7CertLen;
-            int verRes = SSLLib.SSL_get_verify_result(Conn);
+            int verRes = SSL_get_verify_result(Conn);
 
             wsprintf(buffer, LoadStr(IDS_SSL_LOG_OSSL_CERT_VERIFY), verRes);
             Logs.LogMessage(logUID, buffer, -1);
 #ifdef _DEBUG
-            const char* str = SSLLib.X509_verify_cert_error_string(verRes);
+            const char* str = X509_verify_cert_error_string(verRes);
 #endif
 
-            peerCert = SSLLib.SSL_get_peer_certificate(Conn);
-            SSLLib.X509_NAME_oneline(peerCert->cert_info->subject, name, sizeof(name));
+            peerCert = SSL_get_peer_certificate(Conn);
+            X509_NAME_oneline(X509_get_subject_name(peerCert), name, sizeof(name));
             wsprintf(buffer, LoadStr(IDS_SSL_LOG_SUBJECT), name);
             Logs.LogMessage(logUID, buffer, -1);
-            SSLLib.X509_NAME_oneline(peerCert->cert_info->issuer, name, sizeof(name));
+            X509_NAME_oneline(X509_get_issuer_name(peerCert), name, sizeof(name));
             wsprintf(buffer, LoadStr(IDS_SSL_LOG_ISSUER), name);
             Logs.LogMessage(logUID, buffer, -1);
 
             // Obtain entire certificate chain upto root certificate
-            certStack = SSLLib.SSL_get_peer_cert_chain(Conn);
+            certStack = SSL_get_peer_cert_chain(Conn);
             if (certStack)
             {
-                PKCS7* p7 = SSLLib.PKCS7_new();
+                PKCS7* p7 = PKCS7_new();
                 if (p7)
                 {
-                    PKCS7_SIGNED* p7s = SSLLib.PKCS7_SIGNED_new();
+                    PKCS7_SIGNED* p7s = PKCS7_SIGNED_new();
                     if (p7s)
                     {
-                        p7->type = SSLLib.OBJ_nid2obj(NID_pkcs7_signed);
+                        p7->type = OBJ_nid2obj(NID_pkcs7_signed);
                         p7->d.sign = p7s;
-                        p7s->contents->type = SSLLib.OBJ_nid2obj(NID_pkcs7_data);
-                        SSLLib.ASN1_INTEGER_set(p7s->version, 1);
+                        //p7s->contents = PKCS7_content_new(NID_pkcs7_data);
+                        p7s->contents->type = OBJ_nid2obj(NID_pkcs7_data);
+                        ASN1_INTEGER_set(p7s->version, 1);
                         p7s->cert = certStack;
-                        p7s->crl = SSLLib.sk_new_null();
-                        PKCS7CertLen = SSLLib.i2d_PKCS7(p7, NULL);
+                        p7s->crl = sk_X509_CRL_new_null();
+                        p7s->signer_info = sk_PKCS7_SIGNER_INFO_new_null();
+                        PKCS7CertLen = i2d_PKCS7(p7, NULL);
                         tmp = PKCS7Cert = (BYTE*)malloc(PKCS7CertLen);
-                        SSLLib.i2d_PKCS7(p7, &tmp);
+                        i2d_PKCS7(p7, &tmp);
                     }
                 }
                 p7->d.sign->cert = NULL; // Avoid freeing it
-                SSLLib.PKCS7_free(p7);
+                PKCS7_free(p7);
             }
 
-            DERCertLen = SSLLib.i2d_X509(peerCert, NULL);
+            DERCertLen = i2d_X509(peerCert, NULL);
             tmp = DERCert = (BYTE*)malloc(DERCertLen);
-            SSLLib.i2d_X509(peerCert, &tmp);
-            SSLLib.X509_free(peerCert);
+            i2d_X509(peerCert, &tmp);
+            X509_free(peerCert);
 
-            ssl_version = SSLLib.SSL_CIPHER_get_version(SSLLib.SSL_get_current_cipher(Conn));
-            ssl_cipher = SSLLib.SSL_get_current_cipher(Conn);
-            SSLLib.SSL_CIPHER_get_bits(ssl_cipher, &ssl_bits);
-            cipher_name = SSLLib.SSL_CIPHER_get_name(ssl_cipher);
+            ssl_version = SSL_CIPHER_get_version(SSL_get_current_cipher(Conn));
+            ssl_cipher = SSL_get_current_cipher(Conn);
+            SSL_CIPHER_get_bits(ssl_cipher, &ssl_bits);
+            cipher_name = SSL_CIPHER_get_name(ssl_cipher);
             wsprintf(buffer, LoadStr(IDS_SSL_LOG_ALGO), ssl_version, cipher_name, ssl_bits);
             Logs.LogMessage(logUID, buffer, -1);
 
@@ -631,8 +467,8 @@ BOOL CSocket::EncryptSocket(int logUID, int* sslErrorOccured, CCertificate** unv
                     *unverifiedCert = new CCertificate(DERCert, DERCertLen, PKCS7Cert, PKCS7CertLen, false, HostAddress);
                 else
                 {
-                    SSLLib.SSL_shutdown(Conn);
-                    SSLLib.SSL_free(Conn);
+                    SSL_shutdown(Conn);
+                    SSL_free(Conn);
                     if (PKCS7Cert)
                         free(PKCS7Cert);
                     free(DERCert);
@@ -652,17 +488,17 @@ BOOL CSocket::EncryptSocket(int logUID, int* sslErrorOccured, CCertificate** unv
         }
         else
         {
-            /*      ERR_STATE *es = SSLLib.ERR_get_state();
+            /*      ERR_STATE *es = ERR_get_state();
       fd_set  fs;
       timeval tv = {0,10};
       FD_ZERO(&fs);
       FD_SET(Socket, &fs);
       select(1, NULL, NULL, &fs, &tv);*/
-            err = SSLLib.SSL_get_error(Conn, err);
-            //      err = SSLLib.ERR_get_error();
+            err = SSL_get_error(Conn, err);
+            //      err = ERR_get_error();
             //      err = GetLastError();
 
-            sprintf(buffer, LoadStr(IDS_SSL_ERR_CONNECT_LOG), err, SSLLib.ERR_error_string(err, name));
+            sprintf(buffer, LoadStr(IDS_SSL_ERR_CONNECT_LOG), err, ERR_error_string(err, name));
             Logs.LogMessage(logUID, buffer, -1, TRUE);
             WriteSSLErrorStackToLog(logUID, "SSL_connect");
 
@@ -670,7 +506,7 @@ BOOL CSocket::EncryptSocket(int logUID, int* sslErrorOccured, CCertificate** unv
                 *errorID = IDS_SSL_ERR_CONNECT;
             if (errorBufLen > 0)
                 _snprintf_s(errorBuf, errorBufLen, _TRUNCATE, LoadStr(IDS_SSL_ERR_CONNECT_ERR), err, name);
-            SSLLib.SSL_free(Conn);
+            SSL_free(Conn);
             if (sslErrorOccured != NULL)
                 *sslErrorOccured = SSLCONERR_CANRETRY;
         }
@@ -691,52 +527,49 @@ void FreeSSL(int loadStatus)
     {
         if (SSLLib.Locks)
         {
-            SSLLib.CRYPTO_set_locking_callback(NULL);
-            for (int i = 0; i < SSLLib.CRYPTO_num_locks(); i++)
+            CRYPTO_set_locking_callback(NULL);
+            for (int i = 0; i < CRYPTO_num_locks(); i++)
                 if (SSLLib.Locks[i])
                     CloseHandle(SSLLib.Locks[i]);
             free(SSLLib.Locks);
         }
         if (SSLLib.Ctx)
-            SSLLib.SSL_CTX_free(SSLLib.Ctx);
+            SSL_CTX_free(SSLLib.Ctx);
 
         if (loadStatus == 0 || loadStatus == 2)
         {
             // Petr: OpenSSL nechavalo furu memory leaku, proto jsem pridal tento blok
 
             // thread-local cleanup
-            SSLLib.ERR_remove_state(0);
+            //ERR_remove_state(0);
 
             // thread-safe cleanup
-            SSLLib.ENGINE_cleanup();
-            SSLLib.CONF_modules_finish();
-            SSLLib.CONF_modules_free();
-            SSLLib.CONF_modules_unload(1);
+            //ENGINE_cleanup();
+            CONF_modules_finish();
+            CONF_modules_free();
+            CONF_modules_unload(1);
 
             // global application exit cleanup (after all SSL activity is shutdown)
-            SSLLib.ERR_free_strings();
-            SSLLib.EVP_cleanup();
-            SSLLib.CRYPTO_cleanup_all_ex_data();
+            ERR_free_strings();
+            EVP_cleanup();
+            CRYPTO_cleanup_all_ex_data();
 
             // stack s compression metodama asi nejde "legalne" uvolnit, tak se to resi rucne
-            STACK_OF(SSL_COMP)* comp_sk = SSLLib.SSL_COMP_get_compression_methods();
-            SSLLib.sk_free(CHECKED_STACK_OF(SSL_COMP, comp_sk));
+            //STACK_OF(SSL_COMP)* comp_sk = SSL_COMP_get_compression_methods();
+            //sk_free(CHECKED_STACK_OF(SSL_COMP, comp_sk));
+            SSL_COMP_free_compression_methods();
 
             // Petr: konec bloku
         }
-
-        if (SSLLib.hSSLLib)
-            FreeLibrary(SSLLib.hSSLLib);
-        if (SSLLib.hSSLUtilLib)
-            FreeLibrary(SSLLib.hSSLUtilLib);
         bSSLInited = false;
     }
 }
 
 void SSLThreadLocalCleanup()
 {
-    if (bSSLInited)
-        SSLLib.ERR_remove_state(0);
+    //if (bSSLInited)
+    //    ERR_remove_state(0);
+        
 }
 
 static void LockingCallback(int mode, int type, const char* file, int line)
@@ -770,34 +603,21 @@ bool InitSSL(int logUID, int* errorID)
         SalamanderGeneral->SalPathAppend(dir, "utils", _countof(dir)))
     {
         ret = true;
-        char* s = dir + strlen(dir);
-        if (!SalamanderGeneral->SalPathAppend(dir, "libeay32.dll", _countof(dir)) ||
-            !LoadSymbols(dir, NULL, SSLLib.hSSLUtilLib, SSLUtilSymbols, logUID))
-        {
-            ret = false;
-        }
-        *s = 0;
-        if (!ret ||
-            !SalamanderGeneral->SalPathAppend(dir, "ssleay32.dll", _countof(dir)) ||
-            !LoadSymbols(dir, NULL /*_T("libssl32.dll")*/, SSLLib.hSSLLib, SSLSymbols, logUID))
-        {
-            ret = false;
-        }
     }
 
     if (ret)
     {
         loadStatus = 2;
-        sprintf(dir, "SSL INFO: Version: %s \r\nSSL INFO: Compile flags: ", SSLLib.SSLeay_version(SSLEAY_VERSION));
+        sprintf(dir, "SSL INFO: Version: %s \r\nSSL INFO: Compile flags: ", SSLeay_version(SSLEAY_VERSION));
         Logs.LogMessage(logUID, dir, -1);
-        Logs.LogMessage(logUID, SSLLib.SSLeay_version(SSLEAY_CFLAGS), -1);
+        Logs.LogMessage(logUID, SSLeay_version(SSLEAY_CFLAGS), -1);
         Logs.LogMessage(logUID, "\r\n", -1);
         // NOTE: There are no unload counterparts for SSL_library_init & SSL_load_error_strings
-        SSLLib.SSL_library_init();
-        SSLLib.SSL_load_error_strings();
+        SSL_library_init();
+        SSL_load_error_strings();
         DWORD seed = GetTickCount();
-        SSLLib.RAND_seed(&seed, sizeof(seed));
-        int locksCount = SSLLib.CRYPTO_num_locks();
+        RAND_seed(&seed, sizeof(seed));
+        int locksCount = CRYPTO_num_locks();
         SSLLib.Locks = (HANDLE*)malloc(locksCount * sizeof(HANDLE));
         if (SSLLib.Locks)
         {
@@ -818,25 +638,25 @@ bool InitSSL(int logUID, int* errorID)
 
         if (ret)
         {
-            SSLLib.CRYPTO_set_locking_callback(/*(void (*)(int,int,const char *,int))*/ LockingCallback);
+            CRYPTO_set_locking_callback(/*(void (*)(int,int,const char *,int))*/ LockingCallback);
 
             // NOTE: the pointer returned SSLv23_client_method is not to be freed
             //
             // SSLv23_client_method() is default method used in OpenSLL.exe and CURL.
             // Unsafe SSL2 protocol is disabled using OPENSSL_NO_SSL2 define.
             // SSLv3_client_method() didn't work with wedos server: https://forum.altap.cz/viewtopic.php?f=2&t=6667
-            //    SSLLib.Meth = SSLLib.SSLv3_client_method();
-            SSLLib.Meth = SSLLib.SSLv23_client_method();
+            //    SSLLib.Meth = SSLv3_client_method();
+            SSLLib.Meth = SSLv23_client_method();
             if (SSLLib.Meth)
             {
-                SSLLib.Ctx = SSLLib.SSL_CTX_new(SSLLib.Meth);
+                SSLLib.Ctx = SSL_CTX_new(SSLLib.Meth);
                 if (SSLLib.Ctx)
                 {
                     /* also switch on all the interoperability and bug
            * workarounds so that we will communicate with people
            * that cannot read poorly written specs :-)
            */
-                    SSLLib.SSL_CTX_ctrl(SSLLib.Ctx, SSL_CTRL_OPTIONS, SSL_OP_ALL, NULL);
+                    SSL_CTX_ctrl(SSLLib.Ctx, SSL_CTRL_OPTIONS, SSL_OP_ALL, NULL);
                     bSSLInited = true;
                     return true;
                 }

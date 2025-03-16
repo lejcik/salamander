@@ -667,7 +667,7 @@ BOOL CControlConnectionSocket::Write(const char* buffer, int bytesToWrite, DWORD
                     // POZOR: pokud se nekdy zase bude zavadet TELNET protokol, je nutne predelat posilani IAC+IP
                     // pred abortovanim prikazu v metode SendFTPCommand()
 
-                    int sentLen = SSLLib.SSL_write(SSLConn, buffer + len, bytesToWrite - len);
+                    int sentLen = SSL_write(SSLConn, buffer + len, bytesToWrite - len);
                     if (sentLen >= 0) // aspon neco je uspesne odeslano (nebo spis prevzato Windowsama, doruceni je ve hvezdach)
                     {
                         len += sentLen;
@@ -679,7 +679,7 @@ BOOL CControlConnectionSocket::Write(const char* buffer, int bytesToWrite, DWORD
                     }
                     else
                     {
-                        DWORD err = SSLtoWS2Error(SSLLib.SSL_get_error(SSLConn, sentLen));
+                        DWORD err = SSLtoWS2Error(SSL_get_error(SSLConn, sentLen));
                         if (err == WSAEWOULDBLOCK) // nic dalsiho uz poslat nejde (Windowsy jiz nemaji buffer space)
                         {
                             ret = TRUE;
@@ -880,9 +880,9 @@ void CControlConnectionSocket::ReceiveNetEvent(LPARAM lParam, int index)
                     }
                     else
                     {
-                        if (SSLLib.SSL_pending(SSLConn) > 0) // je-li neprazdny interni SSL buffer nedojde vubec k volani recv() a tudiz neprijde dalsi FD_READ, tedy musime si ho poslat sami, jinak se prenos dat zastavi
+                        if (SSL_pending(SSLConn) > 0) // je-li neprazdny interni SSL buffer nedojde vubec k volani recv() a tudiz neprijde dalsi FD_READ, tedy musime si ho poslat sami, jinak se prenos dat zastavi
                             PostMessage(SocketsThread->GetHiddenWindow(), Msg, (WPARAM)Socket, FD_READ);
-                        int len = SSLLib.SSL_read(SSLConn, ReadBytes + ReadBytesCount, ReadBytesAllocatedSize - ReadBytesCount);
+                        int len = SSL_read(SSLConn, ReadBytes + ReadBytesCount, ReadBytesAllocatedSize - ReadBytesCount);
                         if (len >= 0) // mozna jsme neco precetli (0 = spojeni uz je zavrene)
                         {
                             if (len > 0)
@@ -896,7 +896,7 @@ void CControlConnectionSocket::ReceiveNetEvent(LPARAM lParam, int index)
                         }
                         else
                         {
-                            err = SSLtoWS2Error(SSLLib.SSL_get_error(SSLConn, len));
+                            err = SSLtoWS2Error(SSL_get_error(SSLConn, len));
                             ;
                             if (err != WSAEWOULDBLOCK)
                                 genEvent = TRUE; // budeme generovat udalost s chybou
@@ -1125,7 +1125,7 @@ void CControlConnectionSocket::ReceiveNetEvent(LPARAM lParam, int index)
                     {
                         while (1) // cyklus nutny kvuli funkci 'send' (neposila FD_WRITE pri 'sentLen' < 'bytesToWrite')
                         {
-                            int sentLen = SSLLib.SSL_write(SSLConn, BytesToWrite + BytesToWriteOffset + len,
+                            int sentLen = SSL_write(SSLConn, BytesToWrite + BytesToWriteOffset + len,
                                                            BytesToWriteCount - BytesToWriteOffset - len);
                             if (sentLen >= 0) // aspon neco je uspesne odeslano (nebo spis prevzato Windowsama, doruceni je ve hvezdach)
                             {
@@ -1138,7 +1138,7 @@ void CControlConnectionSocket::ReceiveNetEvent(LPARAM lParam, int index)
                             }
                             else
                             {
-                                err = SSLtoWS2Error(SSLLib.SSL_get_error(SSLConn, sentLen));
+                                err = SSLtoWS2Error(SSL_get_error(SSLConn, sentLen));
                                 if (err == WSAEWOULDBLOCK) // nic dalsiho uz poslat nejde (Windowsy jiz nemaji buffer space)
                                 {
                                     ret = TRUE;
