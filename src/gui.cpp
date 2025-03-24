@@ -11,8 +11,8 @@
 #include <uxtheme.h>
 #include <vssym32.h>
 
-#include "nanosvg/nanosvg.h"
-#include "nanosvg/nanosvgrast.h"
+#include <nanosvg/nanosvg.h>
+#include <nanosvg/nanosvgrast.h>
 
 #include "mainwnd.h"
 
