@@ -7,7 +7,7 @@ on:
     branches: [ "main" ]
 
 env:
-  OPENSAL_BUILD_DIR: C:\\OpenSalamander
+  OPENSAL_BUILD_DIR: C:\\OpenSalamander\\
 
 jobs:
   analyze:
