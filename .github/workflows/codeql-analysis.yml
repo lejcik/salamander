@@ -25,10 +25,10 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Add msbuild to PATH
-      uses: microsoft/setup-msbuild@v1.3
+      uses: microsoft/setup-msbuild@v2
 
     - name: Setup vcpkg
       run: |
@@ -36,7 +36,7 @@ jobs:
         vcpkg integrate install
 
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v3
+      uses: github/codeql-action/init@v3.30.3
       with:
         languages: ${{ matrix.language }}
         debug: true
@@ -48,6 +48,6 @@ jobs:
       run: msbuild src\vcxproj\salamand.sln
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v3
+      uses: github/codeql-action/analyze@v3.30.3
       with:
         category: "/language:${{matrix.language}}"
