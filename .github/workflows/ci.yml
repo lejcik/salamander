@@ -57,6 +57,10 @@ jobs:
         msbuild src\vcxproj\salamand.sln /t:Build /p:Configuration=Release /p:platform=$platform
         msbuild src\vcxproj\salamand.sln /t:Build /p:Configuration="Utils (Release)" /p:platform=$platform
 
+    - name: Build language modules
+      run: |
+        & "translations\!build_translations.cmd" Release ${{ matrix.targetplatform }}
+
     - name: Compose installation directory
       run: |
         pushd ${{ env.OPENSAL_BUILD_DIR }}salamander\\${{ env.BUILD_CONFIGURATION }}_${{ matrix.targetplatform }}
@@ -123,7 +127,6 @@ jobs:
         # help compiler exists with code 1 even if it was successful
         $global:LASTEXITCODE = 0
 
-    #- name: Build language files
     #- name: Build setup.exe package
 
     - name: Finalize installation package
