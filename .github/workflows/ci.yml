@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ "main" ]
 
+permissions:
+  contents: read
+
 env:
   # Project files expect this variable to be defined.
   OPENSAL_BUILD_DIR: c:\\OpenSalamander\\
@@ -25,7 +28,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Create version file
       run: |
@@ -37,11 +40,6 @@ jobs:
       uses: microsoft/setup-msbuild@v2
       with:
         msbuild-architecture: ${{ matrix.targetplatform }}
-
-    - name: Setup .NET Framework SDK
-      uses: actions/setup-dotnet@v2
-      with:
-        dotnet-version: '6.0.x' # required for pe-viewer
 
     - name: Setup vcpkg
       run: |
@@ -135,3 +133,4 @@ jobs:
         name: OpenSalamander-${{ matrix.targetplatform }}
         path: ${{ env.OPENSAL_INSTALL_DIR }}
         retention-days: 10
+        compression-level: 9
