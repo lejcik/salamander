@@ -47,10 +47,34 @@ jobs:
         with:
           arch: x64
 
+      - name: Checkout vcpkg
+        uses: actions/checkout@v4
+        with:
+          repository: microsoft/vcpkg
+          path: vcpkg
+
+      - name: Bootstrap vcpkg
+        run: .\vcpkg\bootstrap-vcpkg.bat -disableMetrics
+        working-directory: ${{ github.workspace }}
+
+      - name: Cache vcpkg installed packages
+        uses: actions/cache@v4
+        with:
+          path: vcpkg/installed
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('s/**/vcpkg.json') }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-
+
+      - name: Integrate vcpkg with MSBuild
+        run: .\vcpkg\vcpkg.exe integrate install
+        working-directory: ${{ github.workspace }}
+
       - name: Register MSVC problem matcher
         uses: ammaraskar/msvc-problem-matcher@master
 
       - name: Build via MSBuild (Debug | ${{ matrix.platform }})
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}\vcpkg
         run: |
           $logDir = Join-Path (Get-Location) $env:LOG_DIRECTORY
           New-Item -ItemType Directory -Force -Path $logDir | Out-Null
