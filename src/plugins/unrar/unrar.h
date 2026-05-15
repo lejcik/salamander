@@ -258,7 +258,7 @@ void GetInfo(char* buffer, FILETIME* lastWrite, CQuadWord& size);
 
 //***********************************************************************************
 //
-// Rutiny ze SHLWAPI.DLL
+// Routines from SHLWAPI.DLL
 //
 
 //BOOL PathAppend(LPTSTR  pPath, LPCTSTR pMore);
