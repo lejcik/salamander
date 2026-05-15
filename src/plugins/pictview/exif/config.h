@@ -77,6 +77,9 @@
 // dummy object to make compiler happy
 #define GETTEXT_PACKAGE "Patera"
 
+// disable some warnings
+#pragma warning(disable : 5287)
+
 //#define strdup _strdup
 #define strnicmp _strnicmp
 #if _MSC_VER <= 1800
@@ -86,7 +89,7 @@
 
 #define ssize_t int
 
-// static inline not supported by MSVC and not usefull here -> define it out
+// static inline not supported by MSVC and not useful here -> define it out
 #define inline
 
 #ifndef M_PI

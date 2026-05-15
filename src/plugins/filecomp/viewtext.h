@@ -18,7 +18,7 @@ protected:
     typedef typename std::vector<CChar*> CLineBuffer;
     // CChar * Buffer;
     // CChar const ** Linbuf;
-    CChar* LineBuffer; // bufer for one formated line
+    CChar* LineBuffer; // buffer for one formatted line
     CChar* Text;
     CLineBuffer Lines;
     CIntIndexes LineChanges;
@@ -53,6 +53,3 @@ public:
                              typename std::vector<POLYTEXT>::iterator end);
     virtual void Paint();
 };
-
-template class TTextFileViewWindow<char>;
-template class TTextFileViewWindow<wchar_t>;

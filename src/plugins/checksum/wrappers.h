@@ -6,14 +6,14 @@
 class CHashAlgo
 {
 public:
-    CHashAlgo(){};
-    virtual ~CHashAlgo(){};
+    CHashAlgo() {};
+    virtual ~CHashAlgo() {};
 
     virtual bool IsOK() = 0; // Was constructed successfully?
     virtual bool Init() = 0; // Init for a new file. true on success
     virtual bool Update(const char* buf, DWORD size) = 0;
     virtual bool Finalize() = 0;
-    virtual int GetDigest(char* buf, DWORD bufsize) = 0; // Returns # of copied binary bytes
+    virtual int GetDigest(char* buf, DWORD bufsize) = 0; // Returns the number of copied binary bytes.
     virtual bool ParseDigest(char* buf, char* fileName, int fileNameLen, char* digest) = 0;
 };
 

@@ -21,7 +21,7 @@
 class CISO9660 : public CUnISOFSAbstract
 {
 protected:
-    // struktury
+    // structures
     struct CDirectoryRecord
     {
         BYTE LengthOfDirectoryRecord;
@@ -141,7 +141,7 @@ protected:
         BYTE ApplicationUse[512];                    // This field is reserved for application use.
                                                      // Its content is not specified by ISO-9660.
         BYTE ReservedForFutureStandardization2[653]; // 0
-    };                                               // sizeof(PrimaryVolumeDescriptor) must be 2048
+    }; // sizeof(PrimaryVolumeDescriptor) must be 2048
 
     struct CSuplementaryVolumeDescriptor
     {
@@ -206,7 +206,7 @@ protected:
         BYTE ApplicationUse[512];                    // This field is reserved for application use.
                                                      // Its content is not specified by ISO-9660.
         BYTE ReservedForFutureStandardization2[653]; // 0
-    };                                               // sizeof(PrimaryVolumeDescriptor) must be 2048
+    }; // sizeof(PrimaryVolumeDescriptor) must be 2048
 
     struct CBootRecordVolumeDescriptor
     {
@@ -271,7 +271,7 @@ public:
     //    CISO9660(CISOImage *image, EExt ext, BYTE *root, WORD LogicalBlockSize);
     CISO9660(CISOImage* image, DWORD extent);
     virtual ~CISO9660();
-    // metody
+    // methods
 
     virtual BOOL Open(BOOL quiet);
     virtual BOOL DumpInfo(FILE* outStream);

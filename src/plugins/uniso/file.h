@@ -6,7 +6,7 @@
 class CFile
 {
 public:
-    virtual ~CFile(){};
+    virtual ~CFile() {};
     virtual BOOL Read(LPVOID lpBuffer, DWORD nBytesToRead, DWORD* pnBytesRead, const char* fileName, HWND parent) = 0;
     virtual BOOL Write(LPCVOID lpBuffer, DWORD nBytesToWrite, DWORD* pnBytesWritten, char* fileName, HWND parent) = 0;
     virtual BOOL Close(LPCTSTR fileName, HWND parent) = 0;
@@ -27,7 +27,7 @@ protected:
 //
 // BufferedFile
 //
-// pro bufferovane cteni/zapis ze/do souboru
+// for buffered reading/writing from/to a file
 //
 
 class CBufferedFile : public CFile

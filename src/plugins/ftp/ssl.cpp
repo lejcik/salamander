@@ -1,5 +1,6 @@
 ﻿// SPDX-FileCopyrightText: 2023 Open Salamander Authors
 // SPDX-License-Identifier: GPL-2.0-or-later
+// CommentsTranslationProject: TRANSLATED
 
 #include "precomp.h"
 #include <openssl/err.h>
@@ -136,7 +137,7 @@ CHECK_CERT_AGAIN:
         AddNewLine(buf, maxlen);
         lstrcpyn(buf, LoadStr((res < 0) ? IDS_SSL_ERR_NOTYETVALID : IDS_SSL_ERR_EXPIRED), maxlen);
     }
-    // Whatever flag is used, revokation check fails on most servers :-/
+    // Whatever flag is used, revocation check fails on most servers :-/
     /*int i;
   for (i = 0; i < pChainContext->cChain; i++)
   {
@@ -263,7 +264,7 @@ void WriteSSLErrorStackToLog(int logUID, const char* errSrc)
 {
     // log OpenSSL error stack
     int err2;
-    char buffer[256]; // pisou: at least 120 bytes
+    char buffer[256]; // documentation says: at least 120 bytes
     while ((err2 = ERR_get_error()) != 0)
     {
         ERR_error_string(err2, buffer);
@@ -304,10 +305,10 @@ BOOL CSocket::EncryptSocket(int logUID, int* sslErrorOccured, CCertificate** unv
 
         WSAAsyncSelect(Socket, hWnd, 0, 0);
         err = ioctlsocket(Socket, FIONBIO, &argp);
-        // Socket je pod x64 64-bit hodnota, ale lidi kolem OpenSSL se domnivaji, ze nikdy neprekroci 2^32
-        // viz http://comments.gmane.org/gmane.comp.encryption.openssl.devel/13621
+        // On x64, SOCKET is a 64-bit value, but the OpenSSL developers assume it never exceeds 2^32
+        // see http://comments.gmane.org/gmane.comp.encryption.openssl.devel/13621
         // http://msdn.microsoft.com/en-us/library/ms724485%28VS.85%29.aspx
-        // az to nastane a tady nam zacne podminka padat, treba jiz bude existoval x64 verze SSL
+        // if that happens and this condition starts failing, perhaps an x64 version of SSL will already exist
         if (Socket > 0x00000000ffffffff)
         {
             DWORD* crash = NULL;
@@ -323,7 +324,7 @@ BOOL CSocket::EncryptSocket(int logUID, int* sslErrorOccured, CCertificate** unv
 #endif
 
         BOOL testReuseSSLSession = FALSE;
-        if (conForReuse != NULL && conForReuse->SSLConn != NULL && conForReuse->ReuseSSLSession != 2 /* ne */)
+        if (conForReuse != NULL && conForReuse->SSLConn != NULL && conForReuse->ReuseSSLSession != 2 /* no */)
         {
             SSL_SESSION* ssl_sessionid = SSL_get1_session(conForReuse->SSLConn); // sessionid.addref()
             if (ssl_sessionid == NULL)
@@ -352,20 +353,20 @@ BOOL CSocket::EncryptSocket(int logUID, int* sslErrorOccured, CCertificate** unv
                 if (SSL_session_reused(Conn))
                 {
                     Logs.LogMessage(logUID, "SSL INFO: SSL session reused for data-connection\r\n", -1);
-                    if (conForReuse->ReuseSSLSession == 0 /* zkusit */)
-                        conForReuse->ReuseSSLSession = 1 /* ano */;
+                    if (conForReuse->ReuseSSLSession == 0 /* try */)
+                        conForReuse->ReuseSSLSession = 1 /* yes */;
                 }
                 else // SSL session not reused
                 {
-                    if (conForReuse->ReuseSSLSession == 0 /* zkusit */) // do not try again for future data-connections (or it will fail)
+                    if (conForReuse->ReuseSSLSession == 0 /* try */) // do not try again for future data-connections (or it will fail)
                     {
                         Logs.LogMessage(logUID, "SSL INFO: SSL session was NOT reused, will not try for future data-connections...\r\n", -1);
-                        conForReuse->ReuseSSLSession = 2 /* ne */;
+                        conForReuse->ReuseSSLSession = 2 /* no */;
                     }
                     else // try for all future data-cons to set ReuseSSLSessionFailed to TRUE and so reconnect ctrl-con (except if this is keep-alive data-con)
                     {
                         Logs.LogMessage(logUID, "SSL INFO: SSL session was NOT reused, it has expired in server session cache, reconnect of control connection is needed...\r\n", -1);
-                        conForReuse->ReuseSSLSessionFailed = TRUE; // aby se data-connectiona otevrela je nejspis nutny reuse, ale ten hlasi chybu: jedine reseni je reconnect control-connectiony
+                        conForReuse->ReuseSSLSessionFailed = TRUE; // To open the data connection, reuse is probably necessary, but it reports an error; the only solution is to reconnect the control connection.
                     }
                 }
             }
@@ -441,7 +442,7 @@ BOOL CSocket::EncryptSocket(int logUID, int* sslErrorOccured, CCertificate** unv
                     Logs.LogMessage(logUID, LoadStr(pCertificate->IsVerified() ? IDS_SSL_LOG_CERTVERIFIED : IDS_SSL_LOG_CERTACCEPTED), -1, TRUE);
                     certAcceptedOrVerified = TRUE;
                 }
-                else // Huh! The certificate has changed?????
+                else // The certificate has changed.
                 {
                     Logs.LogMessage(logUID, LoadStr(IDS_SSL_LOG_CERTCHANGED), -1, TRUE);
                     pCertificate->Release();
@@ -461,8 +462,8 @@ BOOL CSocket::EncryptSocket(int logUID, int* sslErrorOccured, CCertificate** unv
             }
             if (!certAcceptedOrVerified)
             {
-                // The certificate was not verified nor previously accepted by user, so user should accept
-                // it before further using of this socket.
+                // The certificate was not verified and had not previously been accepted by the user, so the user should accept
+                // it before any further use of this socket.
                 if (unverifiedCert != NULL)
                     *unverifiedCert = new CCertificate(DERCert, DERCertLen, PKCS7Cert, PKCS7CertLen, false, HostAddress);
                 else
@@ -473,7 +474,7 @@ BOOL CSocket::EncryptSocket(int logUID, int* sslErrorOccured, CCertificate** unv
                         free(PKCS7Cert);
                     free(DERCert);
                     if (sslErrorOccured != NULL)
-                        *sslErrorOccured = SSLCONERR_UNVERIFIEDCERT; // The certificate was not verified nor previously accepted by user.
+                        *sslErrorOccured = SSLCONERR_UNVERIFIEDCERT; // The certificate was not verified and was not previously accepted by the user.
                     return FALSE;
                 }
             }
@@ -483,7 +484,7 @@ BOOL CSocket::EncryptSocket(int logUID, int* sslErrorOccured, CCertificate** unv
             WSAAsyncSelect(Socket, hWnd, Msg, FD_READ | FD_CLOSE | FD_WRITE);
             SSLConn = Conn;
             if (sslErrorOccured != NULL)
-                *sslErrorOccured = SSLCONERR_NOERROR; // But the certificate must not be verified nor previously accepted by user.
+                *sslErrorOccured = SSLCONERR_NOERROR; // But the certificate must not have been verified or previously accepted by the user.
             return TRUE;
         }
         else
@@ -538,7 +539,7 @@ void FreeSSL(int loadStatus)
 
         if (loadStatus == 0 || loadStatus == 2)
         {
-            // Petr: OpenSSL nechavalo furu memory leaku, proto jsem pridal tento blok
+            // Petr: OpenSSL left a bunch of memory leaks, so I added this block
 
             // thread-local cleanup
             //ERR_remove_state(0);
@@ -554,12 +555,12 @@ void FreeSSL(int loadStatus)
             EVP_cleanup();
             CRYPTO_cleanup_all_ex_data();
 
-            // stack s compression metodama asi nejde "legalne" uvolnit, tak se to resi rucne
+            // The stack with compression methods probably cannot be released "legally", so it is handled manually
             //STACK_OF(SSL_COMP)* comp_sk = SSL_COMP_get_compression_methods();
             //sk_free(CHECKED_STACK_OF(SSL_COMP, comp_sk));
             SSL_COMP_free_compression_methods();
 
-            // Petr: konec bloku
+            // Petr: end of block
         }
         bSSLInited = false;
     }
@@ -640,11 +641,11 @@ bool InitSSL(int logUID, int* errorID)
         {
             CRYPTO_set_locking_callback(/*(void (*)(int,int,const char *,int))*/ LockingCallback);
 
-            // NOTE: the pointer returned SSLv23_client_method is not to be freed
+            // NOTE: do not free the pointer returned by SSLv23_client_method()
             //
-            // SSLv23_client_method() is default method used in OpenSLL.exe and CURL.
-            // Unsafe SSL2 protocol is disabled using OPENSSL_NO_SSL2 define.
-            // SSLv3_client_method() didn't work with wedos server: https://forum.altap.cz/viewtopic.php?f=2&t=6667
+            // SSLv23_client_method() is the default method used in OpenSSL.exe and CURL.
+            // The unsafe SSL2 protocol is disabled by the OPENSSL_NO_SSL2 define.
+            // SSLv3_client_method() did not work with the wedos server: https://forum.altap.cz/viewtopic.php?f=2&t=6667
             //    SSLLib.Meth = SSLv3_client_method();
             SSLLib.Meth = SSLv23_client_method();
             if (SSLLib.Meth)
@@ -652,15 +653,15 @@ bool InitSSL(int logUID, int* errorID)
                 SSLLib.Ctx = SSL_CTX_new(SSLLib.Meth);
                 if (SSLLib.Ctx)
                 {
-                    /* also switch on all the interoperability and bug
-           * workarounds so that we will communicate with people
-           * that cannot read poorly written specs :-)
-           */
+                    /* also enable all the interoperability and bug
+                     * workarounds so that we can communicate with implementations
+                     * that cannot read poorly written specs
+                     */
                     SSL_CTX_ctrl(SSLLib.Ctx, SSL_CTRL_OPTIONS, SSL_OP_ALL, NULL);
                     bSSLInited = true;
                     return true;
                 }
-            } // if Meth <> NULL then
+            } // if Meth != NULL
         }
     }
     FreeSSL(loadStatus);

@@ -1,5 +1,6 @@
 ﻿// SPDX-FileCopyrightText: 2023 Open Salamander Authors
 // SPDX-License-Identifier: GPL-2.0-or-later
+// CommentsTranslationProject: TRANSLATED
 
 #pragma once
 
@@ -26,8 +27,8 @@ public:
     void ShowCertificate(HWND hParent);
     bool CheckCertificate(LPTSTR buf, int maxlen);
 
-    // POZOR: metoda meni data certifikatu, volajici si musi zajistit, ze se data nepouzivaji
-    //        zaroven v jinem threadu (idealne volat dokud je tohle jediny odkaz na objekt)
+    // NOTE: the method modifies certificate data, the caller must ensure the data are not used
+    //        simultaneously in another thread (ideally call it while this is the only reference to the object)
     void SetVerified(bool verified) { bVerified = verified; };
 
     bool IsSame(BYTE* pDERCert, int DERCertLen, BYTE* pPKCS7Cert, int PKCS7CertLen);

@@ -7,7 +7,7 @@
 
 #define SF_LONGNAMES 0x00020000
 
-// obecne rozhrani Salamandera - platne od startu az do ukonceni pluginu
+// general Salamander interface - valid from startup until the plugin ends
 extern CSalamanderGeneralAbstract* SalamanderGeneral;
 
 // ****************************************************************************
@@ -60,7 +60,7 @@ public:
     BOOL MakeFilesList(TDirectArray<int>& offsets, SalEnumSelection next, void* nextParam, const char* targetDir);
     BOOL ConstructMaskArray(TIndirectArray<char>& maskArray, const char* masks);
 
-    friend static BOOL ProgressCallback(int);
+    friend BOOL ProgressCallback(int);
 };
 
 class CPluginInterface : public CPluginInterfaceAbstract

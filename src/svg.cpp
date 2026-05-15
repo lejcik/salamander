@@ -1,5 +1,6 @@
 ﻿// SPDX-FileCopyrightText: 2023 Open Salamander Authors
 // SPDX-License-Identifier: GPL-2.0-or-later
+// CommentsTranslationProject: TRANSLATED
 
 #include "precomp.h"
 
@@ -16,17 +17,17 @@ CSVGSprite SVGArrowMore;
 CSVGSprite SVGArrowLess;
 CSVGSprite SVGArrowDropDown;
 
-// alternativa: http://stackoverflow.com/questions/11376288/fast-computing-of-log2-for-64-bit-integers
-// (asi by se nasla i pro kratsi verze)
+// Alternative: http://stackoverflow.com/questions/11376288/fast-computing-of-log2-for-64-bit-integers
+// (we could probably find one for shorter versions as well)
 //
-// nasledujici reseni ma vyhodu, ze pro konstanty bude napocitano v ramci precompileru
+// The following solution has the advantage that constants are computed within the precompiler
 // LOG2_k(n) returns floor(log2(n)) and is valid for values 0 <= n < 1 << k
-#define LOG2_2(n) ((n)&0x2 ? 1 : 0)
-#define LOG2_4(n) ((n)&0xC ? 2 + LOG2_2((n) >> 2) : LOG2_2(n))
-#define LOG2_8(n) ((n)&0xF0 ? 4 + LOG2_4((n) >> 4) : LOG2_4(n))
-#define LOG2_16(n) ((n)&0xFF00 ? 8 + LOG2_8((n) >> 8) : LOG2_8(n))
-#define LOG2_32(n) ((n)&0xFFFF0000 ? 16 + LOG2_16((n) >> 16) : LOG2_16(n))
-#define LOG2_64(n) ((n)&0xFFFFFFFF00000000 ? 32 + LOG2_32((n) >> 32) : LOG2_32(n))
+#define LOG2_2(n) ((n) & 0x2 ? 1 : 0)
+#define LOG2_4(n) ((n) & 0xC ? 2 + LOG2_2((n) >> 2) : LOG2_2(n))
+#define LOG2_8(n) ((n) & 0xF0 ? 4 + LOG2_4((n) >> 4) : LOG2_4(n))
+#define LOG2_16(n) ((n) & 0xFF00 ? 8 + LOG2_8((n) >> 8) : LOG2_8(n))
+#define LOG2_32(n) ((n) & 0xFFFF0000 ? 16 + LOG2_16((n) >> 16) : LOG2_16(n))
+#define LOG2_64(n) ((n) & 0xFFFFFFFF00000000 ? 32 + LOG2_32((n) >> 32) : LOG2_32(n))
 
 //__popcnt16, __popcnt, __popcnt64
 //https://msdn.microsoft.com/en-us/library/bb385231(v=vs.100).aspx
@@ -85,7 +86,7 @@ char* ReadSVGFile(const char* fileName)
     return buff;
 }
 
-// vykresli ikony pro ktere mame SVG reprezentaci
+// Renders icons for which we have an SVG representation
 void RenderSVGImage(NSVGrasterizer* rast, HDC hDC, int x, int y, const char* svgName, int iconSize, COLORREF bkColor, BOOL enabled)
 {
     char svgFile[2 * MAX_PATH];
@@ -124,7 +125,7 @@ void RenderSVGImage(NSVGrasterizer* rast, HDC hDC, int x, int y, const char* svg
 
         if (!enabled)
         {
-            DWORD disabledColor = GetSVGSysColor(COLOR_BTNSHADOW); // JRYFIXME - prvotni nastrel, kde budeme brat disabled barvu?
+            DWORD disabledColor = GetSVGSysColor(COLOR_BTNSHADOW); // JRYFIXME - initial draft: where will we get the disabled color from?
             NSVGshape* shape = image->shapes;
             while (shape != NULL)
             {

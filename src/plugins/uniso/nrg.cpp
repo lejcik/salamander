@@ -1,5 +1,6 @@
 ﻿// SPDX-FileCopyrightText: 2023 Open Salamander Authors
 // SPDX-License-Identifier: GPL-2.0-or-later
+// CommentsTranslationProject: TRANSLATED
 
 #include "precomp.h"
 #include "dbg.h"
@@ -13,7 +14,7 @@
 #include "lang\lang.rh"
 
 // Nero Header
-// pro cteni informace o session/tracks v .NRG
+// for reading information about sessions/tracks in .NRG
 struct NRGHeader
 {
     char ID[4];
@@ -28,27 +29,27 @@ struct DAOX
     BYTE LastTrack;
 };
 
-// swaping macros
+// swapping macros
 
 #define SWAPWORD(d) \
-    (((d)&0x00FF) << 8) | \
-        (((d)&0xFF00) >> 8)
+    (((d) & 0x00FF) << 8) | \
+        (((d) & 0xFF00) >> 8)
 
 #define SWAPDWORD(d) \
-    (((d)&0x000000FF) << 24) | \
-        (((d)&0x0000FF00) << 8) | \
-        (((d)&0x00FF0000) >> 8) | \
-        (((d)&0xFF000000) >> 24)
+    (((d) & 0x000000FF) << 24) | \
+        (((d) & 0x0000FF00) << 8) | \
+        (((d) & 0x00FF0000) >> 8) | \
+        (((d) & 0xFF000000) >> 24)
 
 #define SWAPLONGLONG(l) \
-    (((l)&0x00000000000000FF) << 56) | \
-        (((l)&0x000000000000FF00) << 40) | \
-        (((l)&0x0000000000FF0000) << 24) | \
-        (((l)&0x00000000FF000000) << 8) | \
-        (((l)&0x000000FF00000000) >> 8) | \
-        (((l)&0x0000FF0000000000) >> 24) | \
-        (((l)&0x00FF000000000000) >> 40) | \
-        (((l)&0xFF00000000000000) >> 56)
+    (((l) & 0x00000000000000FF) << 56) | \
+        (((l) & 0x000000000000FF00) << 40) | \
+        (((l) & 0x0000000000FF0000) << 24) | \
+        (((l) & 0x00000000FF000000) << 8) | \
+        (((l) & 0x000000FF00000000) >> 8) | \
+        (((l) & 0x0000FF0000000000) >> 24) | \
+        (((l) & 0x00FF000000000000) >> 40) | \
+        (((l) & 0xFF00000000000000) >> 56)
 
 static WORD
 getWord(void* var)
@@ -269,7 +270,7 @@ readCDTX(CFile& file, NRGHeader* header, CISOImage* iso)
     dst = data;
     int i;
     for (i = header->Size; i > 0; i -= 12 + 6)
-    { // Remove some unknown data (there are blocks of 12 bytes of labels followed by unkown 6 bytes)
+    { // Remove some unknown data (there are blocks of 12 bytes of labels followed by unknown 6 bytes)
         memmove(dst, src, min(12, i));
         dst += 12;
         src += 12 + 6;
