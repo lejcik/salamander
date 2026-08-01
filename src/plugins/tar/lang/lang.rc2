@@ -55,4 +55,7 @@ STRINGTABLE
  IDS_CPIOERR_HEADER, "Corrupted file header record."
  IDS_CPIOERR_FORMAT, "Unknown format of cpio header."
  IDS_LZH_NOT_IMPLEMENTED, "LZH archives not yet supported."
+ IDS_COL_LINKTARGET, "Link target"
+ IDS_COL_LINKTARGET_DESC, "Symlink or hardlink target path"
+ IDS_ERR_DANGLING_SYMLINK, "Cannot open the symlink target ""%s"" because it does not exist in the archive (dangling symlink)."
 }

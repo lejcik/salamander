@@ -241,6 +241,21 @@ enum EArchiveFormat
     e_Unknown,
 };
 
+// Stored in CFileData::PluginData for symlinks/hardlinks.
+// Used to display link target in custom column and redirect extraction.
+struct CTarLinkData
+{
+    char* RawTarget;     // raw link target string as stored in archive (for display)
+    char* ResolvedName;  // resolved full archive entry name with backslashes (for extraction), NULL if dangling
+
+    CTarLinkData() : RawTarget(NULL), ResolvedName(NULL) {}
+    ~CTarLinkData()
+    {
+        free(RawTarget);
+        free(ResolvedName);
+    }
+};
+
 struct SCommonHeader
 {
     SCommonHeader();
@@ -256,6 +271,8 @@ struct SCommonHeader
     BOOL IsExtendedTar;
     BOOL Finished;
     BOOL Ignored;
+    char* LinkTarget; // symlink/hardlink target path (NULL if not a link)
+    BOOL IsSymLink;   // TRUE for symbolic links, FALSE otherwise
     // temporary fields that will be converted to persistent ones
     char* Name;
     CQuadWord Mode;
@@ -273,6 +290,8 @@ public:
     virtual BOOL UnpackArchive(const char* targetPath, const char* archiveRoot,
                                SalEnumSelection nextName, void* param) = 0;
     virtual BOOL UnpackWholeArchive(const char* mask, const char* targetPath) = 0;
+    virtual BOOL UnpackDirRedirected(const char* sourceDirPrefix, const char* targetPath,
+                                     const char* outputDirPrefix) = 0;
 
     virtual BOOL IsOk() = 0;
 };
@@ -318,6 +337,8 @@ public:
     BOOL UnpackArchive(const char* targetPath, const char* archiveRoot,
                        SalEnumSelection nextName, void* param);
     BOOL UnpackWholeArchive(const char* mask, const char* targetPath);
+    BOOL UnpackDirRedirected(const char* sourceDirPrefix, const char* targetPath,
+                             const char* outputDirPrefix) override;
 
     BOOL DoUnpackArchive(const char* targetPath, const char* archiveRoot, CNames& names);
 };

@@ -56,8 +56,11 @@ COMMENT,"Magyar változat"
 11291,1,"Rossz jelzésű fájl."
 11292,1,"Sérült fejléc."
 11293,1,"Ismeretlen formátumú cpio fejléc."
+11295,1,"Link cél"
 
 [STRINGTABLE 5]
+11296,1,"Szimbolikus vagy merev link célútvonala"
+11297,1,"A szimbolikus link "%s" célpontja nem nyitható meg, mert az archívumban nem létezik (lógó szimbolikus link)."
 11299,1,"TAR"
 11300,1,"Unix archívumok böngészése és kibontása."
 11301,1,"Plugin névjegy"

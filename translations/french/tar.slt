@@ -56,8 +56,11 @@ COMMENT,"Version française"
 11291,1,"Mauvaise signature d'un enregistrement du fichier."
 11292,1,"En-tête du fichier altéré."
 11293,1,"Format inconnu de l'en-tête cpio."
+11295,1,"Cible du lien"
 
 [STRINGTABLE 5]
+11296,1,"Chemin de la cible du lien symbolique ou physique"
+11297,1,"Impossible d'ouvrir la cible du lien symbolique "%s" car elle n'existe pas dans l'archive (lien symbolique suspendu)."
 11299,1,"TAR"
 11300,1,"Feuilleter et extraire les archives Unix."
 11301,1,"À propos du module"

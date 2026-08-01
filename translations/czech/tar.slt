@@ -56,8 +56,11 @@ COMMENT,"Česká verze"
 11291,1,"Záznam souboru má neplatný podpis."
 11292,1,"Neplatný záznam hlavičky souboru."
 11293,1,"Neznámý formát cpio hlavičky."
+11295,1,"Cíl odkazu"
 
 [STRINGTABLE 5]
+11296,1,"Cesta k cíli symlinku nebo hardlinku"
+11297,1,"Nelze otevřít cíl symlinku "%s" protože neexistuje v archivu (přerušený symlink)."
 11299,1,"TAR"
 11300,1,"Prohlíží a extrahuje Unix archivy."
 11301,1,"O pluginu"

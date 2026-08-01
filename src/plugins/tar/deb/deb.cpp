@@ -315,3 +315,12 @@ BOOL CDEBArchive::UnpackWholeArchive(const char* mask, const char* targetPath)
     }
     return ret;
 }
+
+BOOL CDEBArchive::UnpackDirRedirected(const char* sourceDirPrefix, const char* targetPath,
+                                      const char* outputDirPrefix)
+{
+    // DEB archives delegate to the data archive for directory-redirected extraction
+    if (dataArchive)
+        return dataArchive->UnpackDirRedirected(sourceDirPrefix, targetPath, outputDirPrefix);
+    return FALSE;
+}

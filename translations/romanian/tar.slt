@@ -56,8 +56,11 @@ COMMENT,"Versiunea romana"
 11291,1,"Fisierul inregistrat are semnatura compromisa."
 11292,1,"Inregistrarea capului de fisier e corupta."
 11293,1,"Format necunoscut la inceputul de fisier cpio."
+11295,1,"Tinta link"
 
 [STRINGTABLE 5]
+11296,1,"Calea catre tinta symlink sau hardlink"
+11297,1,"Nu se poate deschide tinta symlink-ului "%s" deoarece nu exista in arhiva (symlink rupt)."
 11299,1,"TAR"
 11300,1,"Rasfoieste si extrage arhive Unix."
 11301,1,"Despre Plugin"
