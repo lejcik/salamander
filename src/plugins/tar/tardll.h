@@ -5,6 +5,50 @@
 
 //
 // ****************************************************************************
+// CPluginDataInterface
+//
+// Stores link target strings in CFileData::PluginData for symlinks/hardlinks.
+//
+
+class CPluginDataInterface : public CPluginDataInterfaceAbstract
+{
+public:
+    BOOL WINAPI CallReleaseForFiles() override { return TRUE; }
+    BOOL WINAPI CallReleaseForDirs() override { return TRUE; }
+    void WINAPI ReleasePluginData(CFileData& file, BOOL isDir) override;
+
+    void WINAPI GetFileDataForUpDir(const char* archivePath, CFileData& upDir) override {}
+    BOOL WINAPI GetFileDataForNewDir(const char* dirName, CFileData& dir) override;
+
+    HIMAGELIST WINAPI GetSimplePluginIcons(int iconSize) override { return NULL; }
+    BOOL WINAPI HasSimplePluginIcon(CFileData& file, BOOL isDir) override { return FALSE; }
+    HICON WINAPI GetPluginIcon(const CFileData* file, int iconSize, BOOL& destroyIcon) override { return NULL; }
+    int WINAPI CompareFilesFromFS(const CFileData* file1, const CFileData* file2) override { return 0; }
+
+    void WINAPI SetupView(BOOL leftPanel, CSalamanderViewAbstract* view,
+                          const char* archivePath, const CFileData* upperDir) override;
+    void WINAPI ColumnFixedWidthShouldChange(BOOL leftPanel, const CColumn* column,
+                                             int newFixedWidth) override;
+    void WINAPI ColumnWidthWasChanged(BOOL leftPanel, const CColumn* column,
+                                      int newWidth) override;
+    BOOL WINAPI GetInfoLineContent(int panel, const CFileData* file, BOOL isDir,
+                                   int selectedFiles, int selectedDirs,
+                                   BOOL displaySize, const CQuadWord& selectedSize,
+                                   char* buffer, DWORD* hotTexts,
+                                   int& hotTextsCount) override
+    {
+        return FALSE;
+    }
+
+    BOOL WINAPI CanBeCopiedToClipboard() override { return TRUE; }
+
+    BOOL WINAPI GetByteSize(const CFileData* file, BOOL isDir, CQuadWord* size) override { return FALSE; }
+    BOOL WINAPI GetLastWriteDate(const CFileData* file, BOOL isDir, SYSTEMTIME* date) override { return FALSE; }
+    BOOL WINAPI GetLastWriteTime(const CFileData* file, BOOL isDir, SYSTEMTIME* time) override { return FALSE; }
+};
+
+//
+// ****************************************************************************
 // CPluginInterface
 //
 
@@ -72,10 +116,7 @@ public:
 
     void WINAPI Connect(HWND parent, CSalamanderConnectAbstract* salamander) override;
 
-    void WINAPI ReleasePluginDataInterface(CPluginDataInterfaceAbstract* pluginData) override
-    {
-        return;
-    }
+    void WINAPI ReleasePluginDataInterface(CPluginDataInterfaceAbstract* pluginData) override;
 
     CPluginInterfaceForArchiverAbstract* WINAPI GetInterfaceForArchiver() override;
     CPluginInterfaceForViewerAbstract* WINAPI GetInterfaceForViewer() override;

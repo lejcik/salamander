@@ -56,8 +56,11 @@ COMMENT,"Versión en español"
 11291,1,"El registro del fichero tiene una firma inválida."
 11292,1,"Registro de cabecera de fichiero corrupto."
 11293,1,"Formato desconocido de cabecera cpio."
+11295,1,"Destino del enlace"
 
 [STRINGTABLE 5]
+11296,1,"Ruta de destino del enlace simbólico o duro"
+11297,1,"No se puede abrir el destino del enlace simbólico "%s" porque no existe en el archivo (enlace simbólico colgante)."
 11299,1,"TAR"
 11300,1,"Hojear y extraer archivos Unix."
 11301,1,"Acerca del Plugin"

@@ -320,6 +320,15 @@ BOOL CDEBArchive::UnpackWholeArchive(const char* mask, const char* targetPath)
     return ret;
 }
 
+BOOL CDEBArchive::UnpackDirRedirected(const char* sourceDirPrefix, const char* targetPath,
+                                      const char* outputDirPrefix)
+{
+    // DEB archives delegate to the data archive for directory-redirected extraction
+    if (dataArchive)
+        return dataArchive->UnpackDirRedirected(sourceDirPrefix, targetPath, outputDirPrefix);
+    return FALSE;
+}
+
 BOOL CDEBArchive::AssignArchive(const char* archName, CArchive* archive)
 {
     if (!controlArchive && !strncmp(archName, DEB_STREAM_NAME_CONTROL ".", sizeof(DEB_STREAM_NAME_CONTROL ".") - 1))

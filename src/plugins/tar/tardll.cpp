@@ -59,6 +59,12 @@ CPluginInterfaceForArchiver InterfaceForArchiver;
 // portion of CPluginInterface used for the viewer
 CPluginInterfaceForViewer InterfaceForViewer;
 
+// column width persistence
+static const char* CONFIG_COL_LINKTARGET_WIDTH = "Column LinkTarget Width";
+static const char* CONFIG_COL_LINKTARGET_FIXEDWIDTH = "Column LinkTarget FixedWidth";
+DWORD ColumnLinkTargetWidth = MAKELONG(120, 120);
+DWORD ColumnLinkTargetFixedWidth = MAKELONG(0, 0);
+
 // general Salamander interface - valid from plugin start until its termination
 CSalamanderGeneralAbstract* SalamanderGeneral = NULL;
 
@@ -208,6 +214,10 @@ void CPluginInterface::LoadConfiguration(HWND parent, HKEY regKey, CSalamanderRe
         {
             ConfigVersion = 0; // error - use the version without loading
         }
+        registry->GetValue(regKey, CONFIG_COL_LINKTARGET_WIDTH, REG_DWORD,
+                           &ColumnLinkTargetWidth, sizeof(DWORD));
+        registry->GetValue(regKey, CONFIG_COL_LINKTARGET_FIXEDWIDTH, REG_DWORD,
+                           &ColumnLinkTargetFixedWidth, sizeof(DWORD));
     }
     else // default configuration
     {
@@ -221,6 +231,10 @@ void CPluginInterface::SaveConfiguration(HWND parent, HKEY regKey, CSalamanderRe
 
     DWORD v = CURRENT_CONFIG_VERSION;
     registry->SetValue(regKey, CONFIG_VERSION, REG_DWORD, &v, sizeof(DWORD));
+    registry->SetValue(regKey, CONFIG_COL_LINKTARGET_WIDTH, REG_DWORD,
+                       &ColumnLinkTargetWidth, sizeof(DWORD));
+    registry->SetValue(regKey, CONFIG_COL_LINKTARGET_FIXEDWIDTH, REG_DWORD,
+                       &ColumnLinkTargetFixedWidth, sizeof(DWORD));
 }
 
 void CPluginInterface::Connect(HWND parent, CSalamanderConnectAbstract* salamander)
@@ -290,6 +304,139 @@ CPluginInterface::GetInterfaceForViewer()
     return &InterfaceForViewer;
 }
 
+void CPluginInterface::ReleasePluginDataInterface(CPluginDataInterfaceAbstract* pluginData)
+{
+    if (pluginData != NULL)
+        delete ((CPluginDataInterface*)pluginData);
+}
+
+//
+// ****************************************************************************
+// CPluginDataInterface
+//
+
+// transfer variables for custom column callbacks (see CSalamanderViewAbstract::GetTransferVariables)
+static const CFileData** TransferFileData = NULL;
+static int* TransferIsDir = NULL;
+static char* TransferBuffer = NULL;
+static int* TransferLen = NULL;
+static DWORD* TransferRowData = NULL;
+static CPluginDataInterfaceAbstract** TransferPluginDataIface = NULL;
+static DWORD* TransferActCustomData = NULL;
+
+void CPluginDataInterface::ReleasePluginData(CFileData& file, BOOL isDir)
+{
+    if (file.PluginData != 0)
+    {
+        delete (CTarLinkData*)file.PluginData;
+        file.PluginData = 0;
+    }
+}
+
+BOOL CPluginDataInterface::GetFileDataForNewDir(const char* dirName, CFileData& dir)
+{
+    dir.PluginData = 0;
+    return TRUE;
+}
+
+static void WINAPI GetLinkTargetText()
+{
+    if (*TransferIsDir == 2) // up-dir symbol
+    {
+        *TransferLen = 0;
+        return;
+    }
+    if ((*TransferFileData)->PluginData != 0)
+    {
+        CTarLinkData* ld = (CTarLinkData*)(*TransferFileData)->PluginData;
+        if (ld->RawTarget != NULL)
+        {
+            int len = _snprintf_s(TransferBuffer, 1000, _TRUNCATE, "%s", ld->RawTarget);
+            if (len < 0)
+                len = 999;
+            // append [!] marker for dangling/unresolved symlinks
+            if (ld->ResolvedName == NULL)
+            {
+                int extra = _snprintf_s(TransferBuffer + len, 1000 - len, _TRUNCATE, " [!]");
+                if (extra > 0)
+                    len += extra;
+            }
+            *TransferLen = len;
+        }
+        else
+        {
+            *TransferLen = 0;
+        }
+    }
+    else
+    {
+        *TransferLen = 0;
+    }
+}
+
+void CPluginDataInterface::SetupView(BOOL leftPanel, CSalamanderViewAbstract* view,
+                                     const char* archivePath, const CFileData* upperDir)
+{
+    view->GetTransferVariables(TransferFileData, TransferIsDir, TransferBuffer, TransferLen,
+                               TransferRowData, TransferPluginDataIface, TransferActCustomData);
+
+    if (view->GetViewMode() == VIEW_MODE_DETAILED)
+    {
+        // find and remove the standard Attributes column, remember its position
+        int attrIndex = -1;
+        int count = view->GetColumnsCount();
+        for (int i = 0; i < count; i++)
+        {
+            if (view->GetColumn(i)->ID == COLUMN_ID_ATTRIBUTES)
+            {
+                attrIndex = i;
+                break;
+            }
+        }
+        if (attrIndex >= 0)
+            view->DeleteColumn(attrIndex);
+        else
+            attrIndex = count; // append at end if Attr wasn't found
+
+        // insert Link Target column at the Attributes column position
+        CColumn column;
+        lstrcpyn(column.Name, LoadStr(IDS_COL_LINKTARGET), COLUMN_NAME_MAX);
+        lstrcpyn(column.Description, LoadStr(IDS_COL_LINKTARGET_DESC), COLUMN_DESCRIPTION_MAX);
+        column.GetText = GetLinkTargetText;
+        column.SupportSorting = 0;
+        column.LeftAlignment = 1;
+        column.ID = COLUMN_ID_CUSTOM;
+        column.CustomData = 0;
+        column.Width = leftPanel ? LOWORD(ColumnLinkTargetWidth) : HIWORD(ColumnLinkTargetWidth);
+        column.FixedWidth = leftPanel ? LOWORD(ColumnLinkTargetFixedWidth) : HIWORD(ColumnLinkTargetFixedWidth);
+        view->InsertColumn(attrIndex, &column);
+    }
+}
+
+void CPluginDataInterface::ColumnFixedWidthShouldChange(BOOL leftPanel, const CColumn* column, int newFixedWidth)
+{
+    if (column->CustomData == 0)
+    {
+        if (leftPanel)
+            ColumnLinkTargetFixedWidth = MAKELONG(newFixedWidth, HIWORD(ColumnLinkTargetFixedWidth));
+        else
+            ColumnLinkTargetFixedWidth = MAKELONG(LOWORD(ColumnLinkTargetFixedWidth), newFixedWidth);
+    }
+    if (newFixedWidth)
+        ColumnWidthWasChanged(leftPanel, column, column->Width);
+}
+
+void CPluginDataInterface::ColumnWidthWasChanged(BOOL leftPanel, const CColumn* column, int newWidth)
+{
+    if (column->CustomData == 0)
+    {
+        if (leftPanel)
+            ColumnLinkTargetWidth = MAKELONG(newWidth, HIWORD(ColumnLinkTargetWidth));
+        else
+            ColumnLinkTargetWidth = MAKELONG(LOWORD(ColumnLinkTargetWidth), newWidth);
+    }
+}
+
 //
 // ****************************************************************************
 //
@@ -304,7 +451,6 @@ BOOL CPluginInterfaceForArchiver::ListArchive(CSalamanderForOperationsAbstract* 
                                               CPluginDataInterfaceAbstract*& pluginData)
 {
     CALL_STACK_MESSAGE2("CPluginInterfaceForArchiver::ListArchive(, %s, ,)", fileName);
-    pluginData = NULL;
 
     // create the archive object
     CArchiveAbstract* archive = CreateArchive(fileName, salamander);
@@ -313,9 +459,74 @@ BOOL CPluginInterfaceForArchiver::ListArchive(CSalamanderForOperationsAbstract* 
     {
         BOOL ret = archive->ListArchive(NULL, dir);
         delete archive;
-        return ret;
+        if (ret)
+		{
+            pluginData = new CPluginDataInterface();
+            return ret;
+		}
     }
+    pluginData = NULL;
     return FALSE;
+}
+
+// Symlink redirect entry collected during extraction enumeration
+struct SymlinkRedir
+{
+    char curName[2 * MAX_PATH];    // name from enumeration (relative to archiveRoot)
+    char resolved[2 * MAX_PATH];   // full archive path of resolved target
+    BOOL isDir;                    // TRUE if the entry is a directory (symlink to dir)
+};
+
+// Context for the wrapper enumeration callback
+struct SymlinkRedirectContext
+{
+    SalEnumSelection origNext;
+    void* origParam;
+    SymlinkRedir* entries;
+    int count;
+    int cap;
+};
+
+// Wrapper callback that intercepts the selection enumeration to collect symlink redirect info
+static const char* WINAPI WrappedEnumSelection(HWND parent, int enumFiles, BOOL* isDir,
+                                               CQuadWord* size, const CFileData** fileData,
+                                               void* param, int* errorOccured)
+{
+    SymlinkRedirectContext* ctx = (SymlinkRedirectContext*)param;
+
+    // Always request fileData from the original callback
+    const CFileData* fd = NULL;
+    const char* name = ctx->origNext(parent, enumFiles, isDir, size, &fd, ctx->origParam, errorOccured);
+
+    // Forward fileData to caller if they requested it
+    if (fileData != NULL)
+        *fileData = fd;
+
+    // Collect symlink redirect info for entries that have ResolvedName
+    if (name != NULL && fd != NULL && fd->PluginData != 0 && ctx->entries != NULL)
+    {
+        CTarLinkData* ld = (CTarLinkData*)fd->PluginData;
+        if (ld->ResolvedName != NULL)
+        {
+            if (ctx->count >= ctx->cap)
+            {
+                ctx->cap *= 2;
+                SymlinkRedir* tmp = (SymlinkRedir*)realloc(ctx->entries, ctx->cap * sizeof(SymlinkRedir));
+                if (tmp != NULL)
+                    ctx->entries = tmp;
+            }
+            if (ctx->count < ctx->cap)
+            {
+                SymlinkRedir* e = &ctx->entries[ctx->count];
+                strncpy_s(e->curName, name, _TRUNCATE);
+                strncpy_s(e->resolved, ld->ResolvedName, _TRUNCATE);
+                e->isDir = (isDir != NULL) ? *isDir : FALSE;
+                ctx->count++;
+            }
+        }
+    }
+
+    return name;
 }
 
 BOOL CPluginInterfaceForArchiver::UnpackArchive(CSalamanderForOperationsAbstract* salamander,
@@ -326,16 +537,76 @@ BOOL CPluginInterfaceForArchiver::UnpackArchive(CSalamanderForOperationsAbstract
     CALL_STACK_MESSAGE4("CPluginInterfaceForArchiver::UnpackArchive(, %s, , %s, %s,,,)",
                         fileName, targetDir, archiveRoot);
 
-    // create the archive object
+    // Setup wrapper callback to intercept enumeration and collect symlink info
+    SymlinkRedirectContext ctx;
+    ctx.origNext = next;
+    ctx.origParam = nextParam;
+    ctx.count = 0;
+    ctx.cap = 32;
+    ctx.entries = (SymlinkRedir*)malloc(ctx.cap * sizeof(SymlinkRedir));
+
+    // Normal batch extraction with wrapper callback
+    // (regular files extract normally; symlink entries extract as 0-byte since they
+    // have no data in the archive; mirror entries inside dir symlinks won't match
+    // any archive entry and will be silently skipped)
     CArchiveAbstract* archive = CreateArchive(fileName, salamander);
-    // and extract it
+    BOOL ret = FALSE;
     if (archive)
     {
-        BOOL ret = archive->UnpackArchive(targetDir, archiveRoot, next, nextParam);
+        ret = archive->UnpackArchive(targetDir, archiveRoot, WrappedEnumSelection, &ctx);
         delete archive;
-        return ret;
     }
-    return FALSE;
+
+    TRACE_I("UnpackArchive: wrapper collected " << ctx.count << " redirect entries, batch ret=" << ret);
+
+    // Re-extract entries that need redirection (symlinks and mirror entries)
+    for (int i = 0; i < ctx.count && ret; i++)
+    {
+        SymlinkRedir* e = &ctx.entries[i];
+        TRACE_I("UnpackArchive redirect [" << i << "]: curName='" << e->curName
+                << "' resolved='" << e->resolved << "' isDir=" << e->isDir);
+
+        // Build path to the placeholder created by batch extraction
+        char emptyPath[2 * MAX_PATH];
+        strcpy_s(emptyPath, targetDir);
+        if (emptyPath[strlen(emptyPath) - 1] != '\\')
+            strcat_s(emptyPath, "\\");
+        strcat_s(emptyPath, e->curName);
+
+        if (e->isDir)
+        {
+            // Directory symlink: remove the 0-byte placeholder file first,
+            // then extract the entire resolved target directory tree
+            // with paths remapped from the target dir name to the symlink dir name
+            SetFileAttributesA(emptyPath, FILE_ATTRIBUTE_NORMAL);
+            DeleteFileA(emptyPath);
+
+            CArchiveAbstract* arch2 = CreateArchive(fileName, salamander);
+            if (arch2)
+            {
+                arch2->UnpackDirRedirected(e->resolved, targetDir, e->curName);
+                delete arch2;
+            }
+        }
+        else
+        {
+            // File symlink or mirror entry: delete any 0-byte placeholder file,
+            // then extract the resolved target's data with the original output name
+            SetFileAttributesA(emptyPath, FILE_ATTRIBUTE_NORMAL);
+            DeleteFileA(emptyPath);
+
+            CArchiveAbstract* arch2 = CreateArchive(fileName, salamander);
+            if (arch2)
+            {
+                BOOL oneRet = arch2->UnpackOneFile(e->resolved, NULL, targetDir, e->curName);
+                TRACE_I("UnpackArchive redirect [" << i << "]: UnpackOneFile returned " << oneRet);
+                delete arch2;
+            }
+        }
+    }
+
+    free(ctx.entries);
+    return ret;
 }
 
 BOOL CPluginInterfaceForArchiver::UnpackOneFile(CSalamanderForOperationsAbstract* salamander,
@@ -347,12 +618,39 @@ BOOL CPluginInterfaceForArchiver::UnpackOneFile(CSalamanderForOperationsAbstract
     CALL_STACK_MESSAGE4("CPluginInterfaceForArchiver::UnpackOneFile(, %s, , %s, , %s, ,)",
                         fileName, nameInArchive, targetDir);
 
+    // if this is a symlink, redirect to the resolved target
+    const char* actualName = nameInArchive;
+    const char* actualNewFileName = newFileName;
+    if (fileData != NULL && fileData->PluginData != 0)
+    {
+        CTarLinkData* ld = (CTarLinkData*)fileData->PluginData;
+        if (ld->ResolvedName != NULL)
+        {
+            actualName = ld->ResolvedName;
+            // When newFileName is NULL (normal F3 view), the extraction would use the
+            // TARGET's filename. We need the SYMLINK's filename instead.
+            if (actualNewFileName == NULL)
+            {
+                const char* baseName = strrchr(nameInArchive, '\\');
+                actualNewFileName = baseName ? baseName + 1 : nameInArchive;
+            }
+        }
+        else if (ld->RawTarget != NULL)
+        {
+            // dangling symlink — show error
+            char msg[2 * MAX_PATH];
+            _snprintf_s(msg, sizeof(msg), _TRUNCATE, LoadStr(IDS_ERR_DANGLING_SYMLINK), ld->RawTarget);
+            SalamanderGeneral->ShowMessageBox(msg, LoadStr(IDS_TARERR_TITLE), MSGBOX_ERROR);
+            return FALSE;
+        }
+    }
+
     // create the archive object
     CArchiveAbstract* archive = CreateArchive(fileName, salamander);
     // and extract it
     if (archive)
     {
-        BOOL ret = archive->UnpackOneFile(nameInArchive, fileData, targetDir, newFileName);
+        BOOL ret = archive->UnpackOneFile(actualName, fileData, targetDir, actualNewFileName);
         delete archive;
         return ret;
     }

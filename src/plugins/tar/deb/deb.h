@@ -39,6 +39,8 @@ public:
     BOOL UnpackArchive(const char* targetPath, const char* archiveRoot,
                        SalEnumSelection nextName, void* param) override;
     BOOL UnpackWholeArchive(const char* mask, const char* targetPath) override;
+    BOOL UnpackDirRedirected(const char* sourceDirPrefix, const char* targetPath,
+                             const char* outputDirPrefix) override;
 
     BOOL IsOk() const override { return bOK; };
 

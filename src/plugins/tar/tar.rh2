@@ -87,6 +87,13 @@
 // unknown format of cpio header
 #define IDS_CPIOERR_FORMAT           11293
 
+// custom column: Link Target
+#define IDS_COL_LINKTARGET           11295
+#define IDS_COL_LINKTARGET_DESC      11296
+
+// dangling symlink error
+#define IDS_ERR_DANGLING_SYMLINK     11297
+
 // plugin name
 #define IDS_PLUGINNAME               11299
 // description for About and Plugins Manager

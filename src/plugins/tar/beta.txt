@@ -62,3 +62,6 @@ version 3.40: (2021.11.12) Vilo
 
 version 3.50: (2025.09.14) Vilo
   +GZIP3: Added support for .gz3 archives
+
+version 3.60: (2026.08.01) Vilo
+  +GZIP3: Added support for symlinks in .tar archives

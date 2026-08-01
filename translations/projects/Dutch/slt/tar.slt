@@ -56,8 +56,11 @@ COMMENT,"Nederlandse versie"
 11291,1,"Bestand heeft een incorrecte handtekening."
 11292,1,"Vermelding van beschadigd bestands-kop."
 11293,1,"Onbekend bestandsformaat van cpio-kop."
+11295,1,"Linkdoel"
 
 [STRINGTABLE 5]
+11296,1,"Pad naar het doel van de symbolische of harde koppeling"
+11297,1,"Kan het symlink-doel "%s" niet openen omdat het niet bestaat in het archief (hangende symlink)."
 11299,1,"TAR"
 11300,1,"Blader en extraheer Unix archiefbestanden."
 11301,1,"Over deze plugin"

@@ -56,8 +56,11 @@ COMMENT,"Deutsche Version"
 11291,1,"Ein Dateisatz hat eine falsche Signatur."
 11292,1,"Fehlerhafter Dateikopfsatz."
 11293,1,"Unbekanntes Format des Cpio-Kopfes."
+11295,1,"Linkziel"
 
 [STRINGTABLE 5]
+11296,1,"Symlink- oder Hardlink-Zielpfad"
+11297,1,"Das Symlink-Ziel "%s" kann nicht geöffnet werden, da es im Archiv nicht vorhanden ist (hängender Symlink)."
 11299,1,"TAR"
 11300,1,"Durchsucht und entpackt Unix Archive."
 11301,1,"Über Plugin"
