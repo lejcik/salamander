@@ -16,12 +16,6 @@
     <Filter Include="common">
       <UniqueIdentifier>{8a207bdc-245b-40bc-a918-5d6fd02fbab2}</UniqueIdentifier>
     </Filter>
-    <Filter Include="zlib">
-      <UniqueIdentifier>{5bda093c-97de-4740-9887-23bd128dd496}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="bzip2">
-      <UniqueIdentifier>{ef14f658-710e-4121-8489-ef4153552efa}</UniqueIdentifier>
-    </Filter>
     <Filter Include="pnglite">
       <UniqueIdentifier>{ba542554-32da-4655-b4c3-c20982541b09}</UniqueIdentifier>
     </Filter>
@@ -411,57 +405,6 @@
     <ClCompile Include="..\common\winlib.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\common\dep\zlib\adler32.c">
-      <Filter>zlib</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\dep\zlib\compress.c">
-      <Filter>zlib</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\dep\zlib\crc32.c">
-      <Filter>zlib</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\dep\zlib\deflate.c">
-      <Filter>zlib</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\dep\zlib\inffast.c">
-      <Filter>zlib</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\dep\zlib\inflate.c">
-      <Filter>zlib</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\dep\zlib\inftrees.c">
-      <Filter>zlib</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\dep\zlib\trees.c">
-      <Filter>zlib</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\dep\zlib\zutil.c">
-      <Filter>zlib</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\dep\bzip2\blocksort.c">
-      <Filter>bzip2</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\dep\bzip2\bzlib.c">
-      <Filter>bzip2</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\dep\bzip2\compress.c">
-      <Filter>bzip2</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\dep\bzip2\crctable.c">
-      <Filter>bzip2</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\dep\bzip2\decompress.c">
-      <Filter>bzip2</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\dep\bzip2\huffman.c">
-      <Filter>bzip2</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\dep\bzip2\internal_e.cpp">
-      <Filter>bzip2</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\dep\bzip2\randtable.c">
-      <Filter>bzip2</Filter>
-    </ClCompile>
     <ClCompile Include="..\common\dep\pnglite\pnglite.c">
       <Filter>pnglite</Filter>
     </ClCompile>
@@ -721,12 +664,6 @@
     </ClInclude>
     <ClInclude Include="..\common\winlib.h">
       <Filter>common</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\dep\bzip2\bzlib.h">
-      <Filter>bzip2</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\dep\bzip2\bzlib_private.h">
-      <Filter>bzip2</Filter>
     </ClInclude>
     <ClInclude Include="..\common\dep\pnglite\pnglite.h">
       <Filter>pnglite</Filter>

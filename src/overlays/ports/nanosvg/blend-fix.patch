@@ -1,0 +1,25 @@
+diff --git a/src/nanosvgrast.h b/src/nanosvgrast.h
+index 4dd2a18..f0b3730 100644
+--- a/src/nanosvgrast.h
++++ b/src/nanosvgrast.h
+@@ -1464,7 +1464,19 @@ void nsvgRasterizeXY(NSVGrasterizer* r,
+ 		}
+ 	}
+ 
+-	nsvg__unpremultiplyAlpha(dst, w, h, stride);
++	// JRY patch
++	// JRYFIXME: AlphaBlend wants premultiplied format; look what does Defringe section in nsvg__unpremultiplyAlpha
++	// nsvg__unpremultiplyAlpha(dst, w, h, stride);
++
++  // JRYFIXME: patch directly nanosvg to skip this step?
++  for (i = 0; i < w * h; i++)
++  {
++    unsigned char *b = ((unsigned char*)dst) + i * 4;
++    unsigned char b0 = b[0];
++    b[0] = b[2];
++    b[2] = b0;
++  }
++
+ 
+ 	r->bitmap = NULL;
+ 	r->width = 0;

@@ -5,7 +5,7 @@
 //#include <wtypes.h>
 
 #include "plugins.h"
-#include "zlib\zlib.h"
+#include <zlib.h>
 
 //
 // ****************************************************************************

@@ -25,6 +25,7 @@
       <ModuleDefinitionFile>..\..\exif\exif.def</ModuleDefinitionFile>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
+      <ForceFileOutput>MultiplyDefinedSymbolOnly</ForceFileOutput>
     </Link>
     <ResourceCompile>
       <PreprocessorDefinitions>WINVER=0x0601;%(PreprocessorDefinitions)</PreprocessorDefinitions>

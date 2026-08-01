@@ -1,0 +1,136 @@
+name: "Build the OpenSalamander project"
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+env:
+  # Project files expect this variable to be defined.
+  OPENSAL_BUILD_DIR: c:\\OpenSalamander\\
+  # Directory with installation that will be packed and uploaded as an artifact.
+  OPENSAL_INSTALL_DIR: c:\\install\\OpenSalamander\\
+  # Configuration type to build.
+  BUILD_CONFIGURATION: Release
+
+jobs:
+  build:
+    name: Build
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        targetplatform: [x86, x64] # arm64
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+
+    - name: Create version file
+      run: |
+        mkdir ${{ env.OPENSAL_INSTALL_DIR }}
+        git describe --tags --always > ${{ env.OPENSAL_INSTALL_DIR }}version.txt
+        type ${{ env.OPENSAL_INSTALL_DIR }}version.txt
+  
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+      with:
+        msbuild-architecture: ${{ matrix.targetplatform }}
+
+    - name: Setup vcpkg
+      run: |
+        bootstrap-vcpkg
+        vcpkg integrate install
+
+    - name: Build the project
+      run: |
+        $platform = "${{ matrix.targetplatform }}"
+        if ("${{ matrix.targetplatform }}" -eq "x86") {
+          $platform = "Win32"
+        }
+        msbuild src\vcxproj\salamand.sln /t:Build /p:Configuration=Release /p:platform=$platform
+        msbuild src\vcxproj\salamand.sln /t:Build /p:Configuration="Utils (Release)" /p:platform=$platform
+
+    - name: Build language modules
+      run: |
+        & "translations\!build_translations.cmd" Release ${{ matrix.targetplatform }}
+
+    - name: Compose installation directory
+      run: |
+        pushd ${{ env.OPENSAL_BUILD_DIR }}salamander\\${{ env.BUILD_CONFIGURATION }}_${{ matrix.targetplatform }}
+        robocopy . ${{ env.OPENSAL_INSTALL_DIR }} *.exe *.dll *.spl *.slg /S
+        popd
+        xcopy /E /I /Y ${{ github.workspace }}\\convert ${{ env.OPENSAL_INSTALL_DIR }}convert
+        xcopy /E /I /Y ${{ github.workspace }}\\doc ${{ env.OPENSAL_INSTALL_DIR }}doc
+        xcopy /E /I /Y ${{ github.workspace }}\\src\\res\\toolbars ${{ env.OPENSAL_INSTALL_DIR }}toolbars
+        xcopy /E /I /Y ${{ github.workspace }}\\src\\plugins\\automation\\sample-scripts ${{ env.OPENSAL_INSTALL_DIR }}plugins\\automation\\scripts
+        xcopy /E /I /Y ${{ github.workspace }}\\src\\plugins\\ieviewer\\cmark-gfm\\css ${{ env.OPENSAL_INSTALL_DIR }}plugins\\ieviewer\\css
+        xcopy /I /Y ${{ github.workspace }}\\src\\plugins\\zip\\zip2sfx\\*.txt ${{ env.OPENSAL_INSTALL_DIR }}plugins\\zip\\zip2sfx
+        xcopy /I /Y ${{ github.workspace }}\\src\\plugins\\zip\\zip2sfx\\*.set ${{ env.OPENSAL_INSTALL_DIR }}plugins\\zip\\zip2sfx
+
+    - name: Install redistributable files
+      shell: pwsh
+      run: |
+        # find Visual Studio install path with vswhere tool
+        $vswhere_path = "${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\Installer\\vswhere.exe"
+        $vs_install_path = & $vswhere_path -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+        # find out VC toolset version
+        $vs_vctoolset_path = "$vs_install_path\\VC\\Auxiliary\\Build"
+        $vctoolset_file = Get-ChildItem -Path $vs_vctoolset_path -Filter "Microsoft.VCRedistVersion.v???.default.props" | Select-Object -ExpandProperty Name
+        if ($vctoolset_file -match "Microsoft.VCRedistVersion\.v(\d+)\.default\.props") {
+          $vctoolset = $matches[1]
+          $vctoolsver = (Get-Content -Path "$vs_vctoolset_path\\Microsoft.VCRedistVersion.default.txt" -Raw).Trim()
+          # copy redistributable files to the installation directory
+          $vc_redist_path = "$vs_install_path\\VC\\Redist\\MSVC\\$vctoolsver\\${{ matrix.targetplatform }}\\Microsoft.VC${vctoolset}.CRT"
+          Copy-Item -Path "$vc_redist_path\\concrt???.dll" -Destination "${env:OPENSAL_INSTALL_DIR}" -Force
+          Copy-Item -Path "$vc_redist_path\\msvcp???.dll" -Destination "${env:OPENSAL_INSTALL_DIR}" -Force
+          Copy-Item -Path "$vc_redist_path\\vcruntime???.dll" -Destination "${env:OPENSAL_INSTALL_DIR}" -Force
+        }
+
+    - name: Build help files
+      shell: pwsh
+      run: |
+        # help compiler should be available
+        $hhc_exe = "${env:ProgramFiles(x86)}\\HTML Help Workshop\\hhc.exe"
+        # create path where help files will be installed
+        $help_dir = "${env:OPENSAL_INSTALL_DIR}\\help\\english"
+        New-Item -ItemType Directory -Path $help_dir -Force | Out-Null
+        # compile main help file
+        pushd help\\src
+        & $hhc_exe salamand.hhp
+        Move-Item -Path "salamand.chm" -Destination $help_dir -Force
+        popd
+        # compile help for plugins
+        $plugin_dirs = Get-ChildItem -Path "src\\plugins" -Directory | Select-Object -ExpandProperty FullName
+        foreach ($subdir in $plugin_dirs) {
+          $plugin_name = Split-Path $subdir -Leaf
+          $help_src = "$subdir\\help"
+          # pak plugin has different directory structure
+          if ($plugin_name -eq "pak") {
+            $help_src = "$subdir\\spl\\help"
+          }
+          if (Test-Path $help_src) {
+            pushd $help_src
+            if (Test-Path "$plugin_name.hhp") {
+              & $hhc_exe "$plugin_name.hhp"
+              Move-Item -Path "$plugin_name.chm" -Destination $help_dir -Force
+            }
+            popd
+          }
+        }
+        # help compiler exists with code 1 even if it was successful
+        $global:LASTEXITCODE = 0
+
+    #- name: Build setup.exe package
+
+    - name: Finalize installation package
+      uses: actions/upload-artifact@v4
+      with:
+        name: OpenSalamander-${{ matrix.targetplatform }}
+        path: ${{ env.OPENSAL_INSTALL_DIR }}
+        retention-days: 10
+        compression-level: 9

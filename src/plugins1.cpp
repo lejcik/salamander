@@ -2173,11 +2173,27 @@ BOOL CPluginData::InitDLL(HWND parent, BOOL quiet, BOOL waitCursor, BOOL showUns
             s = buf;
         }
 
+        {
+            // add path to the plugin into dll search paths (plugin dll may be linked to local dll libs)
+            char path[MAX_PATH];
+            strcpy_s(path, s);
+            char* p = strrchr(path, '\\');
+            if (p)
+                *p = 0;
+            // path, is that a directory?
+            DWORD fileAttributes = GetFileAttributes(path);
+            if (fileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+            {
+                SetDllDirectory(path);
+            }
+        }
+
         // load the DLL
         HCURSOR oldCur;
         if (waitCursor)
             oldCur = SetCursor(LoadCursor(NULL, IDC_WAIT));
         DLL = HANDLES(LoadLibrary(s));
+        SetDllDirectory(NULL); // reset dll paths to the previous state
         if (waitCursor)
             SetCursor(oldCur);
         if (DLL == NULL) // error

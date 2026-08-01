@@ -18,143 +18,139 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\config.cpp">
+    <ClCompile Include="..\..\common\allochan.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\dialogs.cpp">
+    <ClCompile Include="..\..\common\array.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\ms_init.cpp">
+    <ClCompile Include="..\..\common\dib.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\openedit.cpp">
+    <ClCompile Include="..\..\common\handles.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\registry.cpp">
+    <ClCompile Include="..\..\common\heap.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\tablist.cpp">
+    <ClCompile Include="..\..\common\lstrfix.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\tserver.cpp">
+    <ClCompile Include="..\..\common\messages.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\window.cpp">
+    <ClCompile Include="..\..\common\multimon.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\common\array.cpp">
-      <Filter>Common Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\dib.cpp">
-      <Filter>Common Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\handles.cpp">
-      <Filter>Common Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\lstrfix.cpp">
-      <Filter>Common Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\messages.cpp">
-      <Filter>Common Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\trace.cpp">
-      <Filter>Common Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\winlib.cpp">
-      <Filter>Common Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\precomp.cpp">
+    <ClCompile Include="..\..\common\sheets.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\common\allochan.cpp">
-      <Filter>Common Files</Filter>
+    <ClCompile Include="..\..\common\strutils.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\common\strutils.cpp">
-      <Filter>Common Files</Filter>
+    <ClCompile Include="..\..\common\trace.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\common\heap.cpp">
-      <Filter>Common Files</Filter>
+    <ClCompile Include="..\..\common\winlib.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\common\sheets.cpp">
-      <Filter>Common Files</Filter>
+    <ClCompile Include="..\..\tserver\config.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\common\multimon.cpp">
-      <Filter>Common Files</Filter>
+    <ClCompile Include="..\..\tserver\dialogs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\tserver\ms_init.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\tserver\openedit.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\tserver\precomp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\tserver\registry.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\tserver\tablist.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\tserver\tserver.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\tserver\window.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\config.h">
+    <ClInclude Include="..\..\common\allochan.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\dialog.h">
+    <ClInclude Include="..\..\common\array.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\openedit.h">
+    <ClInclude Include="..\..\common\dib.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\registry.h">
+    <ClInclude Include="..\..\common\handles.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\tablist.h">
+    <ClInclude Include="..\..\common\heap.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\tserver.h">
+    <ClInclude Include="..\..\common\lstrfix.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\common\array.h">
-      <Filter>Common Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\dib.h">
-      <Filter>Common Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\handles.h">
-      <Filter>Common Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\lstrfix.h">
-      <Filter>Common Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\messages.h">
-      <Filter>Common Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\trace.h">
-      <Filter>Common Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\winlib.h">
-      <Filter>Common Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\precomp.h">
+    <ClInclude Include="..\..\common\messages.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\common\allochan.h">
-      <Filter>Common Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\strutils.h">
-      <Filter>Common Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\heap.h">
-      <Filter>Common Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\sheets.h">
+    <ClInclude Include="..\..\common\multimon.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\common\multimon.h">
-      <Filter>Common Files</Filter>
+    <ClInclude Include="..\..\common\sheets.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\common\strutils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\common\trace.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\common\winlib.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\tserver\config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\tserver\dialog.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\tserver\openedit.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\tserver\precomp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\tserver\registry.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\tserver\tablist.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\tserver\tserver.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="..\tserver.rc">
-      <Filter>Resource Files</Filter>
+    <ResourceCompile Include="..\..\tserver\tserver.rc">
+      <Filter>Source Files</Filter>
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\tserver.rc2">
+    <None Include="..\..\tserver\tserver.rc2">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="..\tserver.rh">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="..\tserver.rh2">
-      <Filter>Resource Files</Filter>
-    </None>
+    <None Include="..\..\tserver\tserver.rh" />
+    <None Include="..\..\tserver\tserver.rh2" />
   </ItemGroup>
 </Project>

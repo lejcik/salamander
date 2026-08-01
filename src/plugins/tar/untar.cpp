@@ -127,8 +127,8 @@ BOOL FromOctalQ(const unsigned char* ptr, const int length, CQuadWord& result)
 SCommonHeader::SCommonHeader()
 {
     Path = NULL;
-    ;
     Name = NULL;
+    LinkTarget = NULL;
     FileInfo.Name = NULL;
     Initialize();
 }
@@ -146,10 +146,14 @@ void SCommonHeader::Initialize()
     if (Name != NULL)
         free(Name);
     Name = NULL;
+    if (LinkTarget != NULL)
+        free(LinkTarget);
+    LinkTarget = NULL;
     if (FileInfo.Name != NULL)
         SalamanderGeneral->Free(FileInfo.Name);
     memset(&FileInfo, 0, sizeof(FileInfo));
     IsDir = FALSE;
+    IsSymLink = FALSE;
     Finished = FALSE;
     Ignored = FALSE;
     Checksum.Set(0, 0);
@@ -200,6 +204,216 @@ CArchive::~CArchive()
         delete Stream;
 }
 
+// Helper: canonicalize a backslash-separated path in-place (resolve "." and "..")
+static void CanonicalizeTarPath(char* path)
+{
+    char* components[256];
+    int count = 0;
+
+    char* token = path;
+    while (*token != '\0')
+    {
+        char* slash = strchr(token, '\\');
+        int len;
+        if (slash != NULL)
+        {
+            len = (int)(slash - token);
+            *slash = '\0';
+        }
+        else
+        {
+            len = (int)strlen(token);
+        }
+
+        if (len == 0 || (len == 1 && token[0] == '.'))
+        {
+            // skip empty components and "."
+        }
+        else if (len == 2 && token[0] == '.' && token[1] == '.')
+        {
+            if (count > 0)
+                count--;
+        }
+        else
+        {
+            components[count++] = token;
+            if (count >= 256)
+                break;
+        }
+
+        if (slash != NULL)
+            token = slash + 1;
+        else
+            break;
+    }
+
+    // Rebuild the path in-place
+    char tmp[2 * MAX_PATH];
+    char* t = tmp;
+    for (int i = 0; i < count; i++)
+    {
+        int clen = (int)strlen(components[i]);
+        memcpy(t, components[i], clen);
+        t += clen;
+        if (i < count - 1)
+            *t++ = '\\';
+    }
+    *t = '\0';
+    strcpy(path, tmp);
+}
+
+// Temporary structure for collecting archive entries during pass 1 of listing
+struct TCollectedEntry
+{
+    CFileData FileInfo;    // file data (owns Name, Ext pointers)
+    char* Path;            // directory path for AddFile/AddDir (allocated or NULL)
+    char* FullName;        // full archive entry name (allocated)
+    BOOL IsDir;            // original directory flag
+    BOOL IsSymLink;        // TRUE for symlinks/hardlinks
+    char* RawLinkTarget;   // raw link target from archive (allocated or NULL)
+    // Resolution results (filled in between passes):
+    char* ResolvedName;    // resolved archive entry name (allocated or NULL if dangling)
+    BOOL TargetIsDir;      // TRUE if resolved target is a directory
+};
+
+// Free the dynamically allocated members of a collected entry
+static void FreeCollectedEntry(TCollectedEntry* e)
+{
+    if (e->FileInfo.Name != NULL)
+        SalamanderGeneral->Free(e->FileInfo.Name);
+    free(e->Path);
+    free(e->FullName);
+    free(e->RawLinkTarget);
+    free(e->ResolvedName);
+}
+
+// Resolve a single symlink target against the collected entries.
+// Returns the resolved entry's FullName (_strdup'd) or NULL if dangling.
+// Sets *outTargetIsDir if the resolved target is a directory.
+static char* ResolveSymlinkTarget(TCollectedEntry* entries, int count,
+                                  const char* symlinkFullName,
+                                  const char* rawTarget,
+                                  BOOL* outTargetIsDir,
+                                  int depth)
+{
+    if (depth > 40 || rawTarget == NULL)
+        return NULL;
+
+    // Convert raw target (Unix forward slashes) to backslashes
+    char target[2 * MAX_PATH];
+    strncpy_s(target, sizeof(target), rawTarget, _TRUNCATE);
+    for (char* p = target; *p; p++)
+    {
+        if (*p == '/')
+            *p = '\\';
+    }
+
+    // Build absolute path
+    char absPath[2 * MAX_PATH];
+    if (target[0] == '\\')
+    {
+        // Absolute target: skip leading backslash
+        strncpy_s(absPath, sizeof(absPath), target + 1, _TRUNCATE);
+    }
+    else
+    {
+        // Relative target: resolve against symlink's parent directory
+        strncpy_s(absPath, sizeof(absPath), symlinkFullName, _TRUNCATE);
+        char* lastSep = strrchr(absPath, '\\');
+        if (lastSep != NULL)
+            *(lastSep + 1) = '\0'; // keep trailing backslash
+        else
+            absPath[0] = '\0'; // symlink is in root
+        strncat_s(absPath, sizeof(absPath), target, _TRUNCATE);
+    }
+
+    // Canonicalize (resolve "." and "..")
+    CanonicalizeTarPath(absPath);
+
+    // Strip trailing backslash if present
+    int len = (int)strlen(absPath);
+    if (len > 0 && absPath[len - 1] == '\\')
+        absPath[len - 1] = '\0';
+
+    // Search for the target in collected entries
+    for (int i = 0; i < count; i++)
+    {
+        if (strcmp(entries[i].FullName, absPath) == 0)
+        {
+            // Found the target entry
+            if (entries[i].IsSymLink && entries[i].RawLinkTarget != NULL)
+            {
+                // Target is also a symlink — follow the chain
+                return ResolveSymlinkTarget(entries, count, entries[i].FullName,
+                                            entries[i].RawLinkTarget, outTargetIsDir, depth + 1);
+            }
+            *outTargetIsDir = entries[i].IsDir;
+            return _strdup(entries[i].FullName);
+        }
+    }
+
+    return NULL; // dangling
+}
+
+// Resolve a hardlink target (archive-root-relative path) against collected entries.
+static char* ResolveHardlinkTarget(TCollectedEntry* entries, int count,
+                                   const char* rawTarget, BOOL* outTargetIsDir)
+{
+    char normalized[2 * MAX_PATH];
+    strncpy_s(normalized, sizeof(normalized), rawTarget, _TRUNCATE);
+    // convert forward slashes to backslashes
+    for (char* p = normalized; *p; p++)
+    {
+        if (*p == '/')
+            *p = '\\';
+    }
+    // strip leading backslash
+    char* lookupName = normalized;
+    if (*lookupName == '\\')
+        lookupName++;
+    CanonicalizeTarPath(lookupName);
+    // strip trailing backslash
+    int len = (int)strlen(lookupName);
+    if (len > 0 && lookupName[len - 1] == '\\')
+        lookupName[len - 1] = '\0';
+
+    for (int i = 0; i < count; i++)
+    {
+        if (strcmp(entries[i].FullName, lookupName) == 0)
+        {
+            *outTargetIsDir = entries[i].IsDir;
+            return _strdup(entries[i].FullName);
+        }
+    }
+    return NULL; // dangling
+}
+
+// Resolve all symlinks and hardlinks in the collected entries array
+static void ResolveAllSymlinks(TCollectedEntry* entries, int count)
+{
+    for (int i = 0; i < count; i++)
+    {
+        if (entries[i].RawLinkTarget != NULL)
+        {
+            BOOL targetIsDir = FALSE;
+            if (entries[i].IsSymLink)
+            {
+                // Symlinks: resolve as relative or absolute path
+                entries[i].ResolvedName = ResolveSymlinkTarget(
+                    entries, count, entries[i].FullName,
+                    entries[i].RawLinkTarget, &targetIsDir, 0);
+            }
+            else
+            {
+                // Hardlinks: target is archive-root-relative
+                entries[i].ResolvedName = ResolveHardlinkTarget(
+                    entries, count, entries[i].RawLinkTarget, &targetIsDir);
+            }
+            entries[i].TargetIsDir = targetIsDir;
+        }
+    }
+}
+
 BOOL CArchive::ListArchive(const char* prefix, CSalamanderDirectoryAbstract* dir)
 {
     CALL_STACK_MESSAGE1("CArchive::ListArchive( )");
@@ -232,45 +446,88 @@ BOOL CArchive::ListArchive(const char* prefix, CSalamanderDirectoryAbstract* dir
         return FALSE;
     }
 
-    // we have an archive, so proceed - decode all files from the archive
+    // -----------------------------------------------------------------------
+    // PASS 1: Read the archive sequentially and collect all non-ignored entries
+    // -----------------------------------------------------------------------
+    int entryCap = 256;
+    int entryCount = 0;
+    TCollectedEntry* entries = (TCollectedEntry*)malloc(entryCap * sizeof(TCollectedEntry));
+    if (entries == NULL)
+    {
+        SalamanderGeneral->ShowMessageBox(LoadStr(IDS_TARERR_MEMORY), LoadStr(IDS_TARERR_TITLE), MSGBOX_ERROR);
+        return FALSE;
+    }
+
+    BOOL pass1Ok = TRUE;
     for (;;)
     {
-        // ignore entries we cannot interpret
+        // for CPIO symlinks, the link target is stored as file data;
+        // read it before WriteOutData consumes (skips) the data blocks
+        if (header.IsSymLink && header.LinkTarget == NULL &&
+            header.FileInfo.Size > CQuadWord(0, 0) &&
+            header.FileInfo.Size < CQuadWord(10000, 0))
+        {
+            DWORD targetLen = header.FileInfo.Size.LoDWord;
+            header.LinkTarget = (char*)malloc(targetLen + 1);
+            if (header.LinkTarget != NULL)
+            {
+                DWORD offs = 0;
+                DWORD toread = targetLen;
+                while (toread > 0)
+                {
+                    unsigned short blockRead = (unsigned short)(toread > BLOCKSIZE ? BLOCKSIZE : toread);
+                    const unsigned char* ptr = Stream->GetBlock(blockRead);
+                    if (ptr == NULL)
+                        break;
+                    DWORD rest = blockRead < toread ? blockRead : toread;
+                    memcpy(header.LinkTarget + offs, ptr, rest);
+                    offs += rest;
+                    toread -= rest;
+                    Offset += CQuadWord(blockRead, 0);
+                }
+                header.LinkTarget[offs] = '\0';
+                // set size to 0 so WriteOutData won't try to read the same data again
+                header.FileInfo.Size.Set(0, 0);
+            }
+        }
+
+        // collect non-ignored entries
         if (!header.Ignored)
         {
-            char path[2 * MAX_PATH];
+            // grow the array if needed
+            if (entryCount >= entryCap)
+            {
+                entryCap *= 2;
+                TCollectedEntry* tmp = (TCollectedEntry*)realloc(entries, entryCap * sizeof(TCollectedEntry));
+                if (tmp == NULL)
+                {
+                    SalamanderGeneral->ShowMessageBox(LoadStr(IDS_TARERR_MEMORY), LoadStr(IDS_TARERR_TITLE), MSGBOX_ERROR);
+                    pass1Ok = FALSE;
+                    break;
+                }
+                entries = tmp;
+            }
 
-            if (prefix)
-            {
-                strcpy(path, prefix);
-                if (header.Path)
-                    strcat(path, header.Path);
-            }
-            // add either a new file or a directory
-            if (!header.IsDir)
-            {
-                // TODO: also add user data with the file position inside the archive to separate identically named files
-                // this is a file, add the file
-                if (!dir->AddFile(prefix ? path : header.Path, header.FileInfo, NULL))
-                {
-                    SalamanderGeneral->ShowMessageBox(LoadStr(IDS_TARERR_FDATA), LoadStr(IDS_TARERR_TITLE),
-                                                      MSGBOX_ERROR);
-                    return FALSE;
-                }
-            }
-            else
-            {
-                // TODO: also add user data with the file position inside the archive to separate identically named files
-                // this is a directory, add the directory
-                if (!dir->AddDir(prefix ? path : header.Path, header.FileInfo, NULL))
-                {
-                    SalamanderGeneral->ShowMessageBox(LoadStr(IDS_TARERR_FDATA), LoadStr(IDS_TARERR_TITLE),
-                                                      MSGBOX_ERROR);
-                    return FALSE;
-                }
-            }
-            // set to null so we do not accidentally free the passed memory
-            header.FileInfo.Name = NULL;
+            TCollectedEntry* e = &entries[entryCount];
+            memset(e, 0, sizeof(TCollectedEntry));
+
+            // transfer ownership of FileInfo (including Name pointer)
+            e->FileInfo = header.FileInfo;
+            header.FileInfo.Name = NULL; // prevent double-free
+
+            // copy Path
+            e->Path = header.Path ? _strdup(header.Path) : NULL;
+
+            // copy FullName (the full archive path used for extraction matching)
+            e->FullName = header.Name ? _strdup(header.Name) : NULL;
+
+            e->IsDir = header.IsDir;
+            e->IsSymLink = header.IsSymLink;
+            e->RawLinkTarget = header.LinkTarget ? _strdup(header.LinkTarget) : NULL;
+            e->ResolvedName = NULL;
+            e->TargetIsDir = FALSE;
+
+            entryCount++;
         }
 
         // read the data so that we advance to the next file
@@ -280,17 +537,246 @@ BOOL CArchive::ListArchive(const char* prefix, CSalamanderDirectoryAbstract* dir
         {
             // Patera 2004.03.02: Return TRUE if TAR file ended exactly at the end
             // of last stream
-            return (ret == TAR_EOF) ? TRUE : FALSE;
+            if (ret != TAR_EOF)
+                pass1Ok = FALSE;
+            break;
         }
 
         // prepare a new header for the next iteration
         if (ReadArchiveHeader(header, FALSE) != TAR_OK)
-            return FALSE;
+        {
+            pass1Ok = FALSE;
+            break;
+        }
 
         // reached the end of the archive; finish appropriately
         if (header.Finished)
-            return TRUE;
+            break;
     }
+
+    if (!pass1Ok)
+    {
+        for (int i = 0; i < entryCount; i++)
+            FreeCollectedEntry(&entries[i]);
+        free(entries);
+        return FALSE;
+    }
+
+    // -----------------------------------------------------------------------
+    // BETWEEN PASSES: Resolve symlink targets and fix up sizes
+    // -----------------------------------------------------------------------
+    ResolveAllSymlinks(entries, entryCount);
+
+    // Copy the target's file size to each resolved symlink/hardlink that points to a file
+    for (int i = 0; i < entryCount; i++)
+    {
+        if (entries[i].ResolvedName != NULL && entries[i].RawLinkTarget != NULL && !entries[i].TargetIsDir)
+        {
+            for (int j = 0; j < entryCount; j++)
+            {
+                if (strcmp(entries[j].FullName, entries[i].ResolvedName) == 0)
+                {
+                    entries[i].FileInfo.Size = entries[j].FileInfo.Size;
+                    break;
+                }
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // PASS 2: Add resolved entries to the directory listing
+    // -----------------------------------------------------------------------
+    BOOL pass2Ok = TRUE;
+    for (int i = 0; i < entryCount; i++)
+    {
+        TCollectedEntry* e = &entries[i];
+
+        // create CTarLinkData for symlinks/hardlinks
+        if (e->RawLinkTarget != NULL)
+        {
+            CTarLinkData* ld = new CTarLinkData();
+            ld->RawTarget = _strdup(e->RawLinkTarget);
+            ld->ResolvedName = e->ResolvedName ? _strdup(e->ResolvedName) : NULL;
+            e->FileInfo.PluginData = (DWORD_PTR)ld;
+        }
+        else
+        {
+            e->FileInfo.PluginData = 0;
+        }
+
+        // determine if this entry should be listed as a directory
+        // (either originally a directory, or a link pointing to a directory)
+        BOOL listAsDir = e->IsDir || (e->TargetIsDir && e->ResolvedName != NULL);
+
+        char path[2 * MAX_PATH];
+        if (prefix)
+        {
+            strcpy_s(path, prefix);
+            if (e->Path)
+                strcat_s(path, e->Path);
+        }
+
+        if (listAsDir)
+        {
+            e->FileInfo.Attr |= FILE_ATTRIBUTE_DIRECTORY;
+            if (!dir->AddDir(prefix ? path : e->Path, e->FileInfo, NULL))
+            {
+                SalamanderGeneral->ShowMessageBox(LoadStr(IDS_TARERR_FDATA), LoadStr(IDS_TARERR_TITLE),
+                                                  MSGBOX_ERROR);
+                pass2Ok = FALSE;
+                // FileInfo.Name ownership transferred to dir on success, but on failure we need cleanup
+                break;
+            }
+        }
+        else
+        {
+            if (!dir->AddFile(prefix ? path : e->Path, e->FileInfo, NULL))
+            {
+                SalamanderGeneral->ShowMessageBox(LoadStr(IDS_TARERR_FDATA), LoadStr(IDS_TARERR_TITLE),
+                                                  MSGBOX_ERROR);
+                pass2Ok = FALSE;
+                break;
+            }
+        }
+
+        // dir took ownership of Name and PluginData
+        e->FileInfo.Name = NULL;
+        e->FileInfo.PluginData = 0;
+    }
+
+    // -----------------------------------------------------------------------
+    // PASS 2b: For directory symlinks, mirror the target directory's children
+    //          under the symlink's path so navigation into it shows content
+    // -----------------------------------------------------------------------
+    if (pass2Ok)
+    {
+        for (int i = 0; i < entryCount; i++)
+        {
+            TCollectedEntry* sl = &entries[i];
+            if (sl->ResolvedName == NULL || !sl->TargetIsDir)
+                continue; // not a resolved directory symlink
+
+            // Build the target prefix to match children (e.g. "usr\lib\mydir\\")
+            char targetPrefix[2 * MAX_PATH];
+            _snprintf_s(targetPrefix, sizeof(targetPrefix), _TRUNCATE, "%s\\", sl->ResolvedName);
+            int targetPrefixLen = (int)strlen(targetPrefix);
+
+            // The symlink's full name becomes the replacement prefix (e.g. "usr\lib\mylink\\")
+            char symlinkPrefix[2 * MAX_PATH];
+            _snprintf_s(symlinkPrefix, sizeof(symlinkPrefix), _TRUNCATE, "%s\\", sl->FullName);
+
+            // Iterate all entries looking for children of the target directory
+            for (int j = 0; j < entryCount; j++)
+            {
+                TCollectedEntry* child = &entries[j];
+                if (child->FullName == NULL)
+                    continue;
+                if (_strnicmp(child->FullName, targetPrefix, targetPrefixLen) != 0)
+                    continue; // not a child of the target directory
+
+                // Build the mirrored full name: symlinkPrefix + remainder
+                const char* remainder = child->FullName + targetPrefixLen;
+                char mirroredFull[2 * MAX_PATH];
+                _snprintf_s(mirroredFull, sizeof(mirroredFull), _TRUNCATE, "%s%s", symlinkPrefix, remainder);
+
+                // Split into path and name the same way ReadArchiveHeader does
+                char* mirroredPath = NULL;
+                const char* mirroredName = NULL;
+                const char* lastSep = strrchr(mirroredFull, '\\');
+                if (lastSep != NULL && lastSep > mirroredFull)
+                {
+                    size_t pathLen = lastSep - mirroredFull;
+                    mirroredPath = (char*)malloc(pathLen + 1);
+                    if (mirroredPath == NULL)
+                        continue;
+                    strncpy_s(mirroredPath, pathLen + 1, mirroredFull, pathLen);
+                    mirroredName = lastSep + 1;
+                }
+                else
+                {
+                    mirroredName = mirroredFull;
+                }
+
+                // Build a CFileData for the mirrored entry
+                CFileData fd = child->FileInfo; // copy value fields (Size, Attr, dates, etc.)
+                fd.Name = SalamanderGeneral->DupStr(mirroredName);
+                if (fd.Name == NULL)
+                {
+                    free(mirroredPath);
+                    continue;
+                }
+                fd.NameLen = (int)strlen(fd.Name);
+
+                // Determine extension
+                int sortByExtDirsAsFiles;
+                SalamanderGeneral->GetConfigParameter(SALCFG_SORTBYEXTDIRSASFILES, &sortByExtDirsAsFiles,
+                                                      sizeof(sortByExtDirsAsFiles), NULL);
+                if (sortByExtDirsAsFiles || !child->IsDir)
+                {
+                    char* s = fd.Name + fd.NameLen - 1;
+                    while (s >= fd.Name && *s != '.')
+                        s--;
+                    if (s >= fd.Name)
+                        fd.Ext = s + 1;
+                    else
+                        fd.Ext = fd.Name + fd.NameLen;
+                }
+                else
+                {
+                    fd.Ext = fd.Name + fd.NameLen;
+                }
+
+                // Create CTarLinkData for ALL mirror entries so extraction can redirect
+                // to the actual archive entry path
+                {
+                    CTarLinkData* ld = new CTarLinkData();
+                    if (child->RawLinkTarget != NULL)
+                    {
+                        // child is itself a symlink — show raw target in Link Target column
+                        ld->RawTarget = _strdup(child->RawLinkTarget);
+                        ld->ResolvedName = child->ResolvedName ? _strdup(child->ResolvedName) : NULL;
+                    }
+                    else
+                    {
+                        // regular entry — no display, but redirect extraction to actual archive path
+                        ld->RawTarget = NULL;
+                        ld->ResolvedName = _strdup(child->FullName);
+                    }
+                    fd.PluginData = (DWORD_PTR)ld;
+                }
+                fd.IsLink = (child->RawLinkTarget != NULL) ? 1 : 0;
+
+                char addPath[2 * MAX_PATH];
+                if (prefix)
+                {
+                    strcpy_s(addPath, prefix);
+                    if (mirroredPath)
+                        strcat_s(addPath, mirroredPath);
+                }
+
+                BOOL childIsDir = child->IsDir || (child->TargetIsDir && child->ResolvedName != NULL);
+                if (childIsDir)
+                {
+                    fd.Attr |= FILE_ATTRIBUTE_DIRECTORY;
+                    dir->AddDir(prefix ? addPath : mirroredPath, fd, NULL);
+                }
+                else
+                {
+                    dir->AddFile(prefix ? addPath : mirroredPath, fd, NULL);
+                }
+
+                // dir took ownership
+                free(mirroredPath);
+            }
+        }
+    }
+
+    // clean up collected entries
+    for (int i = 0; i < entryCount; i++)
+        FreeCollectedEntry(&entries[i]);
+    free(entries);
+
+    return pass2Ok;
 }
 
 BOOL CArchive::UnpackOneFile(const char* nameInArchive, const CFileData* fileData,
@@ -434,6 +920,49 @@ BOOL CArchive::UnpackWholeArchive(const char* mask, const char* targetPath)
 
     // and now perform the actual extraction
     return DoUnpackArchive(targetPath, NULL, names);
+}
+
+BOOL CArchive::UnpackDirRedirected(const char* sourceDirPrefix, const char* targetPath,
+                                   const char* outputDirPrefix)
+{
+    CALL_STACK_MESSAGE4("CArchive::UnpackDirRedirected(%s, %s, %s)", sourceDirPrefix, targetPath, outputDirPrefix);
+
+    if (!IsOk())
+        return FALSE;
+
+    Silent = 0;
+    Offset.Set(0, 0);
+    SCommonHeader header;
+    int ret = ReadArchiveHeader(header, TRUE);
+    if (ret == TAR_NOTAR || ret != TAR_OK || header.Finished)
+        return FALSE;
+
+    int srcLen = (int)strlen(sourceDirPrefix);
+
+    for (;;)
+    {
+        BOOL found = FALSE;
+        char outputName[2 * MAX_PATH] = {0};
+
+        if (!header.Ignored && header.Name != NULL &&
+            strncmp(header.Name, sourceDirPrefix, srcLen) == 0 &&
+            header.Name[srcLen] == '\\')
+        {
+            // Entry is inside the source directory — remap output path
+            _snprintf_s(outputName, sizeof(outputName), _TRUNCATE,
+                        "%s%s", outputDirPrefix, header.Name + srcLen);
+            found = TRUE;
+        }
+
+        ret = WriteOutData(header, targetPath, found ? outputName : header.Name, !found, FALSE);
+        if (ret != TAR_OK)
+            return (ret == TAR_EOF) ? TRUE : FALSE;
+
+        if (ReadArchiveHeader(header, FALSE) != TAR_OK)
+            return FALSE;
+        if (header.Finished)
+            return TRUE;
+    }
 }
 
 //
@@ -605,10 +1134,10 @@ int CArchive::WriteOutData(const SCommonHeader& header, const char* targetPath,
         {
             char progresstxt[1000];
             if (!toSkip)
-                strcpy(progresstxt, LoadStr(IDS_UNPACKPROGRESS_TEXT));
+                strcpy_s(progresstxt, LoadStr(IDS_UNPACKPROGRESS_TEXT));
             else
-                strcpy(progresstxt, LoadStr(IDS_SKIPPROGRESS_TEXT));
-            strcat(progresstxt, header.Name);
+                strcpy_s(progresstxt, LoadStr(IDS_SKIPPROGRESS_TEXT));
+            strcat_s(progresstxt, header.Name);
             SalamanderIf->ProgressDialogAddText(progresstxt, TRUE);
         }
     }
@@ -790,8 +1319,8 @@ int CArchive::WriteOutData(const SCommonHeader& header, const char* targetPath,
             {
                 char buffer[1000];
                 DWORD err = GetLastError();
-                strcpy(buffer, LoadStr(IDS_TARERR_FWRITE));
-                strcat(buffer, SalamanderGeneral->GetErrorText(err));
+                strcpy_s(buffer, LoadStr(IDS_TARERR_FWRITE));
+                strcat_s(buffer, SalamanderGeneral->GetErrorText(err));
                 SalamanderGeneral->ShowMessageBox(buffer, LoadStr(IDS_TARERR_TITLE), MSGBOX_ERROR);
                 DeleteFile(extractedName);
                 free(extractedName);
@@ -1062,6 +1591,7 @@ int CArchive::ReadArchiveHeader(SCommonHeader& header, BOOL probe)
                 break;
             }
             // otherwise it is the start of the name; fall through to copying
+            [[fallthrough]];
         default:
             // copy characters until the next slash
             while (*src != '\0' && *src != '\\' && *src != '/')
@@ -1163,10 +1693,21 @@ int CArchive::ReadArchiveHeader(SCommonHeader& header, BOOL probe)
     // we already have the type from tar, now handle cpio
     if (header.Format != e_TarPosix && header.Format != e_TarOldGnu &&
         header.Format != e_TarV7)
+    {
         if ((header.Mode.LoDWord & CP_IFMT) == CP_IFDIR)
             header.IsDir = TRUE;
+        else if ((header.Mode.LoDWord & CP_IFMT) == CP_IFLNK)
+        {
+            // CPIO symbolic link — the link target is stored as file data
+            // (it will be read by WriteOutData when simulate=TRUE; we cannot
+            //  easily read it here because the data follows the header and
+            //  ReadArchiveHeader is called before WriteOutData)
+            header.IsSymLink = TRUE;
+            header.Ignored = FALSE;
+        }
         else if ((header.Mode.LoDWord & CP_IFMT) != CP_IFREG)
             header.Ignored = TRUE;
+    }
     // attributes
     header.FileInfo.Attr = FILE_ATTRIBUTE_ARCHIVE;
     if ((header.Mode.LoDWord & 0200) == 0)
@@ -1178,11 +1719,12 @@ int CArchive::ReadArchiveHeader(SCommonHeader& header, BOOL probe)
     header.FileInfo.Hidden = header.FileInfo.Attr & FILE_ATTRIBUTE_HIDDEN ? 1 : 0;
     if (header.IsDir)
         header.FileInfo.IsLink = 0;
+    else if (header.LinkTarget != NULL) // symlinks and hardlinks
+        header.FileInfo.IsLink = 1;
     else
         header.FileInfo.IsLink = SalamanderGeneral->IsFileLink(header.FileInfo.Ext);
     header.FileInfo.IsOffline = 0;
-    // TODO: store an unambiguous file identifier in PluginData, e.g. the offset...
-    header.FileInfo.PluginData = -1; // unnecessary, just for formality
+    header.FileInfo.PluginData = -1; // will be set in ListArchive if needed
     return TAR_OK;
 } /* CArchive::ReadArchiveHeader */
 
@@ -1469,13 +2011,25 @@ int CArchive::ReadTarHeader(const unsigned char* buffer, SCommonHeader& header)
                 SalamanderGeneral->ShowMessageBox(LoadStr(IDS_TARERR_HEADER), LoadStr(IDS_TARERR_TITLE), MSGBOX_ERROR);
                 return TAR_ERROR;
             }
-            // ignore link entries and keep only actual file names
+            // allocate storage for long file names or long link names
             if (tarHeader->Header.typeflag == GNUTYPE_LONGNAME)
             {
                 if (header.Name != NULL)
                     free(header.Name);
                 header.Name = (char*)malloc(header.FileInfo.Size.LoDWord + 1);
                 if (header.Name == NULL)
+                {
+                    SalamanderGeneral->ShowMessageBox(LoadStr(IDS_TARERR_MEMORY), LoadStr(IDS_TARERR_TITLE),
+                                                      MSGBOX_ERROR);
+                    return TAR_ERROR;
+                }
+            }
+            else // GNUTYPE_LONGLINK
+            {
+                if (header.LinkTarget != NULL)
+                    free(header.LinkTarget);
+                header.LinkTarget = (char*)malloc(header.FileInfo.Size.LoDWord + 1);
+                if (header.LinkTarget == NULL)
                 {
                     SalamanderGeneral->ShowMessageBox(LoadStr(IDS_TARERR_MEMORY), LoadStr(IDS_TARERR_TITLE),
                                                       MSGBOX_ERROR);
@@ -1497,15 +2051,19 @@ int CArchive::ReadTarHeader(const unsigned char* buffer, SCommonHeader& header)
                 }
                 Offset += CQuadWord(BLOCKSIZE, 0);
                 DWORD rest = BLOCKSIZE < toread ? BLOCKSIZE : toread;
-                // ignore long-name link entries
+                // store data for long file names or long link names
                 if (typeFlag == GNUTYPE_LONGNAME)
                     memcpy(header.Name + offs, ptr, rest);
+                else if (typeFlag == GNUTYPE_LONGLINK)
+                    memcpy(header.LinkTarget + offs, ptr, rest);
                 offs += rest;
                 toread -= rest;
             }
             // terminate with a null character...
             if (typeFlag == GNUTYPE_LONGNAME)
                 *(header.Name + offs) = '\0';
+            else if (typeFlag == GNUTYPE_LONGLINK)
+                *(header.LinkTarget + offs) = '\0';
             // and read the next block for further processing
             tarHeader = (const TTarBlock*)Stream->GetBlock(BLOCKSIZE);
             if (tarHeader == NULL)
@@ -1559,10 +2117,23 @@ int CArchive::ReadTarHeader(const unsigned char* buffer, SCommonHeader& header)
         // inspect the file type
         switch (tarHeader->Header.typeflag)
         {
-        case LNKTYPE:
         case SYMTYPE:
-            // TODO: tar for DOS extracts symlinks as hard links and hard links
-            //       as copies. Or perhaps we could try shortcuts...
+        case LNKTYPE:
+        {
+            // symbolic link or hard link — show in listing with link target
+            header.IsDir = FALSE;
+            header.Ignored = FALSE;
+            header.IsSymLink = (tarHeader->Header.typeflag == SYMTYPE);
+            // capture the link target from either the long link name or the header field
+            if (header.LinkTarget == NULL)
+            {
+                // no long link name was read (GNUTYPE_LONGLINK), use the header field
+                char tmpLink[101];
+                strncpy_s(tmpLink, tarHeader->Header.linkname, _TRUNCATE);
+                header.LinkTarget = _strdup(tmpLink);
+            }
+            break;
+        }
         case CHRTYPE:
         case BLKTYPE:
         case FIFOTYPE:
@@ -1753,8 +2324,8 @@ BOOL CArchive::UnpackStream(const char* targetPath, BOOL doProgress,
     if (doProgress)
     {
         char progresstxt[1000];
-        strcpy(progresstxt, LoadStr(IDS_UNPACKPROGRESS_TEXT));
-        strcat(progresstxt, header.Name);
+        strcpy_s(progresstxt, LoadStr(IDS_UNPACKPROGRESS_TEXT));
+        strcat_s(progresstxt, header.Name);
         SalamanderIf->ProgressDialogAddText(progresstxt, TRUE);
     }
     // the size field in the header may not be reliable; keep unpacking while data remains
@@ -1821,8 +2392,8 @@ BOOL CArchive::UnpackStream(const char* targetPath, BOOL doProgress,
     {
         char buffer[1000];
         DWORD err = GetLastError();
-        strcpy(buffer, LoadStr(IDS_TARERR_FWRITE));
-        strcat(buffer, SalamanderGeneral->GetErrorText(err));
+        strcpy_s(buffer, LoadStr(IDS_TARERR_FWRITE));
+        strcat_s(buffer, SalamanderGeneral->GetErrorText(err));
         SalamanderGeneral->ShowMessageBox(buffer, LoadStr(IDS_TARERR_TITLE), MSGBOX_ERROR);
         DeleteFile(extractedName);
         free(extractedName);

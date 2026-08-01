@@ -1,0 +1,9 @@
+{
+  "dependencies": [
+    "bzip2",
+    "nanosvg",
+    "wil",
+    "zlib"
+  ],
+  "builtin-baseline": "62159a45e18f3a9ac0548628dcaf74fcb60c6ff9"
+}

@@ -11,7 +11,7 @@
 #define USE_ZLIB 1
 
 #if USE_ZLIB
-#include "../zlib/zlib.h"
+#include <zlib.h>
 #else
 #include "zlite.h"
 #endif

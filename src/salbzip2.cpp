@@ -4,7 +4,7 @@
 #include "precomp.h"
 
 #include "plugins.h"
-#include "bzip2/bzlib.h"
+#include <bzlib.h>
 
 //
 // ****************************************************************************

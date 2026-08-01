@@ -3,7 +3,8 @@
 
 #pragma once
 
-#include "unrardll.h"
+// include unrar.dll API
+#include <unrar.h>
 
 /* winnt.h
 #define FILE_ATTRIBUTE_READONLY             0x00000001
@@ -254,17 +255,6 @@ extern struct CConfiguration Config;
 
 LPCTSTR LoadStr(int resID);
 void GetInfo(char* buffer, FILETIME* lastWrite, CQuadWord& size);
-
-typedef int(PASCAL* FRARGetDllVersion)();
-typedef HANDLE(PASCAL* FRAROpenArchiveEx)(struct RAROpenArchiveDataEx* ArchiveData);
-typedef int(PASCAL* FRARCloseArchive)(HANDLE hArcData);
-//typedef int (PASCAL *FRARReadHeader)(HANDLE hArcData,struct RARHeaderData *HeaderData);
-typedef int(PASCAL* FRARReadHeaderEx)(HANDLE hArcData, struct RARHeaderDataEx* HeaderData);
-typedef int(PASCAL* FRARProcessFile)(HANDLE hArcData, int Operation, const char* DestPath, char* DestName);
-//typedef void (PASCAL *FRARSetChangeVolProc)(HANDLE hArcData,int (PASCAL *ChangeVolProc)(char *ArcName,int Mode));
-//typedef void (PASCAL *FRARSetProcessDataProc)(HANDLE hArcData,int (PASCAL *ProcessDataProc)(unsigned char *Addr,int Size));
-typedef void(PASCAL* FRARSetPassword)(HANDLE hArcData, char* Password);
-typedef void(PASCAL* FRARSetCallback)(HANDLE hArcData, UNRARCALLBACK Callback, LPARAM UserData);
 
 //***********************************************************************************
 //
